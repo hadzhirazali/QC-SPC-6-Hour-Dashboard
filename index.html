@@ -3,14 +3,16 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-    <title>MES SPC Barcode Dashboard</title>
+    <title>MES SPC Barcode Dashboard (Live Cloud)</title>
     
     <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <!-- ADDED: LocalForage for Browser Database (IndexedDB) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
+    
+    <!-- ADDED: Firebase Realtime Database SDK (v8 Compat for simple HTML integration) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     
     <style>
         :root {
@@ -28,7 +30,8 @@
         /* Top Header Area */
         header { background: var(--surface); padding: 16px 24px; border: 1px solid var(--line); border-radius: 8px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);}
         .header-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
-        h1 { font-size: 22px; font-weight: 600; margin: 0; }
+        h1 { font-size: 22px; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 8px;}
+        .cloud-badge { background: #e3f2fd; color: #1976d2; font-size: 11px; padding: 3px 8px; border-radius: 12px; border: 1px solid #bbdefb; }
         .status { margin-top: 4px; font-size: 13px; font-weight: 600; color: var(--ink2); }
         .status.success { color: #17673f; }
         .status.error { color: #d32f2f; }
@@ -83,8 +86,8 @@
     <header>
         <div class="header-top">
             <div>
-                <h1>MES SPC Barcode Dashboard</h1>
-                <div class="status" id="uploadStatus">Status: Waiting for Data Upload...</div>
+                <h1>MES SPC Barcode Dashboard <span class="cloud-badge">☁️ Live Cloud Sync</span></h1>
+                <div class="status" id="uploadStatus">Status: Connecting to Firebase Database...</div>
             </div>
             <div style="display: flex; gap: 10px;">
                 <button id="copyImageBtn" class="btn" style="border-color: var(--active); color: var(--active);">📸 Copy Image</button>
@@ -96,8 +99,7 @@
                 📁 Upload MES Export (Excel/CSV)
                 <input type="file" id="mesFileUpload" accept=".xlsx,.xls,.csv" style="display: none;">
             </label>
-            <!-- ADDED: Clear Database Button -->
-            <button id="clearDbBtn" class="btn btn-clear">🗑️ Clear DB</button>
+            <button id="clearDbBtn" class="btn btn-clear">🗑️ Clear Cloud DB</button>
             
             <div class="seg" id="lineToggles" style="margin-left: 10px;">
                 <input type="checkbox" id="cb_W1" value="W1" checked><label for="cb_W1">W1</label>
@@ -132,6 +134,22 @@
 </div>
 
 <script>
+    // --- FIREBASE CONFIGURATION ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyD2o2iDihDy0InX06f2JIzJC76rdadV4K4",
+        authDomain: "mes-spc-dashboard.firebaseapp.com",
+        databaseURL: "https://mes-spc-dashboard-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "mes-spc-dashboard",
+        storageBucket: "mes-spc-dashboard.firebasestorage.app",
+        messagingSenderId: "366479322897",
+        appId: "1:366479322897:web:156a148503258e13efe6b0"
+    };
+    
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    // ------------------------------
+
     let globalData = { W1: [], W2: [], W3: [], W4: [], W5: [], W6: [] };
     let chartInstances = [];
 
@@ -182,9 +200,7 @@
                 if (lowerKey.includes(kw.toLowerCase())) {
                     let val = parseFloat(row[key]);
                     if (!isNaN(val)) {
-                        if (/(实测|检测|测试|值|平均|average|avg|value|result)/i.test(lowerKey)) {
-                            return val; 
-                        }
+                        if (/(实测|检测|测试|值|平均|average|avg|value|result)/i.test(lowerKey)) return val; 
                         possibleValues.push(val);
                     }
                 }
@@ -240,7 +256,6 @@
         return { mean: mean, stdDev: stdDev, cpk: cpk };
     }
 
-    // ADDED: Helper to find the absolute latest time across all lines in the database
     function getLatestGlobalTime() {
         let maxTime = 0;
         for (let line in globalData) {
@@ -252,7 +267,6 @@
         return maxTime > 0 ? new Date(maxTime) : null;
     }
 
-    // ADDED: Updates the Start/End timebox based on the latest available data
     function updateTimeInputs(maxTimeObj) {
         if (!maxTimeObj) return;
         let tzOffset = (new Date()).getTimezoneOffset() * 60000;
@@ -262,19 +276,58 @@
         document.getElementById('highlightStart').value = startLocal.toISOString().slice(0,16);
     }
 
-    // FIXED: Smart Merging logic to combine new Excel file with existing Database
+    // --- FIREBASE REAL-TIME SYNC LISTENER ---
+    // This function automatically runs immediately on load, AND anytime anyone uploads a file!
+    document.addEventListener('DOMContentLoaded', () => {
+        const statusEl = document.getElementById('uploadStatus');
+        
+        database.ref('mesGlobalData').on('value', function(snapshot) {
+            const savedData = snapshot.val();
+            
+            if (savedData) {
+                // Parse Firebase JSON text strings back into standard Javascript Date objects
+                ['W1', 'W2', 'W3', 'W4', 'W5', 'W6'].forEach(line => {
+                    globalData[line] = savedData[line] || [];
+                    globalData[line].forEach(item => {
+                        item.time = new Date(item.time);
+                    });
+                });
+                
+                statusEl.textContent = "✅ Status: Live cloud data synced. Watching for real-time updates...";
+                statusEl.className = "status success";
+                
+                let latest = getLatestGlobalTime();
+                updateTimeInputs(latest);
+                renderCharts(); // Automatically draw the chart!
+            } else {
+                globalData = { W1: [], W2: [], W3: [], W4: [], W5: [], W6: [] };
+                renderCharts(); // Clear the chart
+                statusEl.textContent = "Status: Cloud Database is completely empty. Waiting for Data Upload...";
+                statusEl.className = "status";
+            }
+        });
+    });
+
+    // --- CLEAR DATABASE (FOR EVERYONE) ---
+    document.getElementById('clearDbBtn').addEventListener('click', function() {
+        if(confirm("Are you sure you want to wipe the live cloud database? This will clear the dashboard for ALL users.")) {
+            database.ref('mesGlobalData').remove().then(function() {
+                // UI updates automatically via the real-time listener above!
+            });
+        }
+    });
+
+    // --- EXCEL FILE PARSING & CLOUD UPLOAD ---
     function parseMESData(dataArray) {
         let addedCount = 0;
         let tempMap = { W1: new Map(), W2: new Map(), W3: new Map(), W4: new Map() };
         
-        // 1. Load existing database data into Map to prevent duplicates
         for(let line in globalData) {
             if(tempMap[line]) {
                 globalData[line].forEach(item => tempMap[line].set(item.barcode, item));
             }
         }
 
-        // 2. Process new Excel file
         dataArray.forEach(rawRow => {
             const row = {};
             for (let k in rawRow) row[k.trim()] = rawRow[k];
@@ -301,11 +354,9 @@
             let thickVal = extractMeasurement(row, ['厚度', 'sf002', 'thick', 'thickness', 'average thickness']);
 
             if(tempMap[line]) {
-                // If this is a completely new barcode we haven't seen, count it!
                 if(!tempMap[line].has(barcode)) {
                     addedCount++; 
                 }
-                // Add or Overwrite with latest Excel data
                 tempMap[line].set(barcode, {
                     barcode: barcode,
                     time: dateObj,
@@ -315,63 +366,23 @@
             }
         });
 
-        // 3. Save combined data back to global array and sort by time
         for(let line in tempMap) {
             globalData[line] = Array.from(tempMap[line].values());
             globalData[line].sort((a,b) => new Date(a.time) - new Date(b.time));
         }
 
-        // 4. Save to Browser Database (IndexedDB)
-        localforage.setItem('mesGlobalData', globalData).catch(err => console.log("DB Error:", err));
-
-        // 5. Update UI limits based on combined data
-        let latest = getLatestGlobalTime();
-        updateTimeInputs(latest);
+        // Push merged data directly to the live Firebase database!
+        database.ref('mesGlobalData').set(globalData).catch(err => console.log("DB Error:", err));
 
         return addedCount;
     }
-
-    // ADDED: Initialize Database on Page Load
-    document.addEventListener('DOMContentLoaded', () => {
-        const statusEl = document.getElementById('uploadStatus');
-        statusEl.textContent = "Status: Checking local database for historical data...";
-        
-        localforage.getItem('mesGlobalData').then(function(savedData) {
-            if (savedData && (savedData.W1.length > 0 || savedData.W2.length > 0 || savedData.W3.length > 0 || savedData.W4.length > 0)) {
-                globalData = savedData;
-                statusEl.textContent = "✅ Status: Loaded historical data from local database. Ready for new uploads.";
-                statusEl.className = "status success";
-                
-                let latest = getLatestGlobalTime();
-                updateTimeInputs(latest);
-                renderCharts();
-            } else {
-                statusEl.textContent = "Status: No historical data found. Waiting for Data Upload...";
-            }
-        }).catch(function(err) {
-            statusEl.textContent = "Status: Waiting for Data Upload...";
-        });
-    });
-
-    // ADDED: Clear Database Button Logic
-    document.getElementById('clearDbBtn').addEventListener('click', function() {
-        if(confirm("Are you sure you want to clear ALL historical data from this browser's memory?")) {
-            localforage.removeItem('mesGlobalData').then(function() {
-                globalData = { W1: [], W2: [], W3: [], W4: [], W5: [], W6: [] };
-                renderCharts(); // Re-render empty charts
-                const statusEl = document.getElementById('uploadStatus');
-                statusEl.textContent = "🗑️ Status: Database cleared. Waiting for Data Upload...";
-                statusEl.className = "status";
-            });
-        }
-    });
 
     document.getElementById('mesFileUpload').addEventListener('change', function(event) {
         const file = event.target.files[0];
         if (!file) return;
         
         const statusEl = document.getElementById('uploadStatus');
-        statusEl.textContent = "Status: Parsing Excel file and dynamically calculating Sigma...";
+        statusEl.textContent = "Status: Parsing Excel file and pushing to Cloud...";
         statusEl.className = "status";
         
         const reader = new FileReader();
@@ -380,16 +391,17 @@
                 const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
                 const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
                 
-                let newAddedCount = parseMESData(jsonData);
+                let newAddedCount = parseMESData(jsonData); // Parses, merges, and pushes to Firebase
                 
                 if (newAddedCount > 0) {
-                    statusEl.textContent = `✅ Success: Appended ${newAddedCount} NEW measured barcodes into the database.`;
+                    statusEl.textContent = `✅ Success: Pushed ${newAddedCount} NEW measured barcodes into the cloud. Syncing everyone's screens...`;
                     statusEl.className = "status success";
                 } else {
-                    statusEl.textContent = `✅ Complete: File parsed, but no new unique barcodes were found to append.`;
+                    statusEl.textContent = `✅ Complete: File parsed, but no new unique barcodes were found.`;
                     statusEl.className = "status success";
                 }
-                renderCharts();
+                // We DO NOT call renderCharts() here manually. 
+                // The Firebase Realtime listener automatically triggers the update the exact second the upload finishes!
             } catch (error) {
                 statusEl.textContent = "❌ Error parsing file structure.";
                 statusEl.className = "status error";
@@ -476,7 +488,6 @@
             
             if (rawLines.length === 0) return; 
 
-            // FIXED: Make sure the Time from DB is handled as a true Date object
             let filteredRows = rawLines.filter(row => new Date(row.time) >= displayStartTime && new Date(row.time) <= displayEndTime);
 
             let groupedData = {};
@@ -655,7 +666,6 @@
 
     window.addEventListener('resize', () => chartInstances.forEach(inst => inst && inst.resize()));
     document.querySelectorAll('#lineToggles input').forEach(cb => cb.addEventListener('change', renderCharts));
-    // Note: DOMContentLoaded listener moved up to handle DB loading
     
     document.getElementById('copyImageBtn').addEventListener('click', async function() {
         const btn = this; const orig = btn.textContent; btn.textContent = '📸 Copying...';
