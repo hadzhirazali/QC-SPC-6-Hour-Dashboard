@@ -415,7 +415,17 @@
             let chartData = [];
             let chartTimeMap = [];
             
-            let averagedKeys = Object.keys(groupedData).sort((a,b) => groupedData[a].timeSum - groupedData[b].timeSum);
+            // FIXED: Added Strict Secondary Sort
+            // This ensures that even if WS1, WS2, WS3 have the exact same timestamp,
+            // they are sorted alphabetically by Workstation Barcode, forcing WS1 to always be first.
+            let averagedKeys = Object.keys(groupedData).sort((a,b) => {
+                let avgTimeA = groupedData[a].timeSum / groupedData[a].count;
+                let avgTimeB = groupedData[b].timeSum / groupedData[b].count;
+                if (avgTimeA !== avgTimeB) {
+                    return avgTimeA - avgTimeB; // Primary sort: Timestamp
+                }
+                return a.localeCompare(b); // Secondary sort: Alphabetical barcode string to force WS1 -> WS5 order
+            });
             
             averagedKeys.forEach(k => {
                 let g = groupedData[k];
@@ -481,14 +491,18 @@
                 xAxis: [
                     { 
                         type: 'category', 
-                        data: chartMotherBarcodes, 
-                        position: 'bottom', // FIXED: Ensures the major axis renders at the bottom
+                        data: chartHoverBarcodes, 
+                        position: 'bottom',
                         axisLabel: { 
                             rotate: 35, 
                             fontSize: 10,
                             fontWeight: 'bold', 
                             color: '#333',      
                             margin: 15,
+                            align: 'right', 
+                            formatter: function (value, index) {
+                                return chartMotherBarcodes[index];
+                            },
                             interval: function (index, value) {
                                 if (index === 0) return true;
                                 if (chartMotherBarcodes[index] !== chartMotherBarcodes[index - 1]) return true;
@@ -509,8 +523,8 @@
                     },
                     {
                         type: 'category',
-                        data: chartMotherBarcodes,
-                        position: 'bottom', // FIXED: Forces the minor axis to perfectly overlay the major axis at the bottom
+                        data: chartHoverBarcodes,
+                        position: 'bottom',
                         axisLabel: { show: false }, 
                         axisLine: { show: false },  
                         axisTick: {
