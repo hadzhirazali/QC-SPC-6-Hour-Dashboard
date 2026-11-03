@@ -9,8 +9,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    
-    <!-- ADDED: Firebase Realtime Database SDK (v8 Compat for simple HTML integration) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     
@@ -145,7 +143,6 @@
         appId: "1:366479322897:web:156a148503258e13efe6b0"
     };
     
-    // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
     // ------------------------------
@@ -267,17 +264,46 @@
         return maxTime > 0 ? new Date(maxTime) : null;
     }
 
+    // FIXED: Snaps exactly to standard 6-hour QC shifts (10 AM to 4 PM, 4 PM to 10 PM, etc.)
     function updateTimeInputs(maxTimeObj) {
         if (!maxTimeObj) return;
+        
+        // 1. Determine the logical target end time based on the exact shift boundaries.
+        let targetEnd = new Date(maxTimeObj);
+        let h = targetEnd.getHours();
+        
+        if (h >= 10 && h < 16) {
+            // Shift is 10:00 to 16:00 (04:00 PM)
+            targetEnd.setHours(16, 0, 0, 0);
+        } else if (h >= 16 && h < 22) {
+            // Shift is 16:00 to 22:00 (10:00 PM)
+            targetEnd.setHours(22, 0, 0, 0);
+        } else if (h >= 22 || h < 4) {
+            // Shift is 22:00 to 04:00 AM (Next Day)
+            if (h >= 22) {
+                targetEnd.setDate(targetEnd.getDate() + 1); // Bump to next day if it's currently 10pm-11:59pm
+            }
+            targetEnd.setHours(4, 0, 0, 0);
+        } else if (h >= 4 && h < 10) {
+            // Shift is 04:00 AM to 10:00 AM
+            targetEnd.setHours(10, 0, 0, 0);
+        }
+        
+        // 2. Set start time exactly 6 hours prior to the snapped shift end
+        let targetStart = new Date(targetEnd.getTime() - (6 * 60 * 60 * 1000));
+        
+        // 3. Format for the datetime-local input fields (handles timezone offsets correctly)
         let tzOffset = (new Date()).getTimezoneOffset() * 60000;
-        let endLocal = new Date(maxTimeObj.getTime() - tzOffset);
-        document.getElementById('highlightEnd').value = endLocal.toISOString().slice(0,16);
-        let startLocal = new Date(maxTimeObj.getTime() - tzOffset - (24 * 60 * 60 * 1000));
-        document.getElementById('highlightStart').value = startLocal.toISOString().slice(0,16);
+        
+        let localEnd = new Date(targetEnd.getTime() - tzOffset);
+        document.getElementById('highlightEnd').value = localEnd.toISOString().slice(0,16);
+        
+        // We still subtract 24 hours for the "display" Red Box Start to show full context in the graph
+        let displayStart = new Date(targetEnd.getTime() - tzOffset - (24 * 60 * 60 * 1000));
+        document.getElementById('highlightStart').value = displayStart.toISOString().slice(0,16);
     }
 
     // --- FIREBASE REAL-TIME SYNC LISTENER ---
-    // This function automatically runs immediately on load, AND anytime anyone uploads a file!
     document.addEventListener('DOMContentLoaded', () => {
         const statusEl = document.getElementById('uploadStatus');
         
@@ -285,7 +311,6 @@
             const savedData = snapshot.val();
             
             if (savedData) {
-                // Parse Firebase JSON text strings back into standard Javascript Date objects
                 ['W1', 'W2', 'W3', 'W4', 'W5', 'W6'].forEach(line => {
                     globalData[line] = savedData[line] || [];
                     globalData[line].forEach(item => {
@@ -298,22 +323,30 @@
                 
                 let latest = getLatestGlobalTime();
                 updateTimeInputs(latest);
-                renderCharts(); // Automatically draw the chart!
+                renderCharts(); 
             } else {
                 globalData = { W1: [], W2: [], W3: [], W4: [], W5: [], W6: [] };
-                renderCharts(); // Clear the chart
+                renderCharts(); 
                 statusEl.textContent = "Status: Cloud Database is completely empty. Waiting for Data Upload...";
                 statusEl.className = "status";
             }
         });
     });
 
-    // --- CLEAR DATABASE (FOR EVERYONE) ---
+    // FIXED: ADDED PASSWORD PROTECTION TO DB WIPE
     document.getElementById('clearDbBtn').addEventListener('click', function() {
-        if(confirm("Are you sure you want to wipe the live cloud database? This will clear the dashboard for ALL users.")) {
-            database.ref('mesGlobalData').remove().then(function() {
-                // UI updates automatically via the real-time listener above!
-            });
+        let authInput = prompt("ADMIN REQUIRED: Enter password to completely wipe the live cloud database for everyone:");
+        
+        if (authInput === "QAPermission") {
+            if(confirm("FINAL WARNING: Password accepted. Are you absolutely sure you want to delete all MES data?")) {
+                database.ref('mesGlobalData').remove().then(function() {
+                    alert("Database successfully wiped.");
+                }).catch(function(error) {
+                    alert("Error wiping database: " + error.message);
+                });
+            }
+        } else if (authInput !== null) {
+            alert("❌ Incorrect Password. Database wipe aborted.");
         }
     });
 
@@ -371,7 +404,6 @@
             globalData[line].sort((a,b) => new Date(a.time) - new Date(b.time));
         }
 
-        // Push merged data directly to the live Firebase database!
         database.ref('mesGlobalData').set(globalData).catch(err => console.log("DB Error:", err));
 
         return addedCount;
@@ -391,7 +423,7 @@
                 const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
                 const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
                 
-                let newAddedCount = parseMESData(jsonData); // Parses, merges, and pushes to Firebase
+                let newAddedCount = parseMESData(jsonData); 
                 
                 if (newAddedCount > 0) {
                     statusEl.textContent = `✅ Success: Pushed ${newAddedCount} NEW measured barcodes into the cloud. Syncing everyone's screens...`;
@@ -400,8 +432,6 @@
                     statusEl.textContent = `✅ Complete: File parsed, but no new unique barcodes were found.`;
                     statusEl.className = "status success";
                 }
-                // We DO NOT call renderCharts() here manually. 
-                // The Firebase Realtime listener automatically triggers the update the exact second the upload finishes!
             } catch (error) {
                 statusEl.textContent = "❌ Error parsing file structure.";
                 statusEl.className = "status error";
