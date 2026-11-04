@@ -40,8 +40,8 @@
         .btn:hover { background: #e9e9e9; }
         .btn-upload { background-color: #e6f4ea; border-color: #1e8e3e; color: #1e8e3e; }
         .btn-upload:hover { background-color: #d4edd9; }
-        .btn-clear { background-color: #ffebee; border-color: #d32f2f; color: #d32f2f; }
-        .btn-clear:hover { background-color: #ffcdd2; }
+        .btn-danger { background-color: #ffebee; border-color: #d32f2f; color: #d32f2f; }
+        .btn-danger:hover { background-color: #ffcdd2; }
         
         /* Checkboxes */
         .seg { display: inline-flex; background: #f0f0f0; border-radius: 6px; padding: 3px; gap: 2px; }
@@ -55,10 +55,7 @@
 
         /* SPC Chart Specific Styles */
         .spc-card { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; display: flex; flex-direction: column; overflow: hidden; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        
-        /* NEW: Bold, Centered Title replacing the old header */
         .spc-title { text-align: center; font-size: 16px; padding: 12px 10px; font-weight: bold; background-color: #fcfcfc; border-bottom: 1px solid var(--line); color: #111;}
-        
         .spc-body { display: flex; width: 100%; height: 420px; }
         .spc-echarts-container { flex-grow: 1; height: 100%; min-width: 0; }
         
@@ -86,7 +83,6 @@
                 <div class="status" id="uploadStatus">Status: Connecting to Firebase Database...</div>
             </div>
             
-            <!-- NEW: Copy Text Button added below Copy Image -->
             <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end; min-width: 120px;">
                 <button id="copyImageBtn" class="btn" style="border-color: var(--active); color: var(--active); width: 100%;">📸 Copy Image</button>
                 <button id="copyTextBtn" class="btn" style="border-color: #1e8e3e; color: #1e8e3e; width: 100%;">📝 Copy Text</button>
@@ -98,7 +94,6 @@
                 📁 Upload MES Export (Excel/CSV)
                 <input type="file" id="mesFileUpload" accept=".xlsx,.xls,.csv" style="display: none;">
             </label>
-            <button id="clearDbBtn" class="btn btn-clear">🗑️ Clear Cloud DB</button>
             
             <div class="seg" id="lineToggles" style="margin-left: 10px;">
                 <input type="checkbox" id="cb_W1" value="W1" checked><label for="cb_W1">W1</label>
@@ -111,6 +106,14 @@
                 <span class="label-bold">Target Parameter: </span>
                 <label style="margin-left:5px; cursor:pointer;"><input type="radio" name="viewType" value="air" checked onchange="renderCharts()"> Air Permeability</label>
                 <label style="margin-left:5px; cursor:pointer;"><input type="radio" name="viewType" value="thick" onchange="renderCharts()"> Thickness</label>
+            </div>
+            
+            <!-- NEW: 3-Button Deletion Group -->
+            <div style="display: flex; gap: 8px; align-items: center; border-left: 1px solid #ccc; padding-left: 15px;">
+                <span class="label-bold" style="color: #d32f2f;">Data Delete:</span>
+                <button id="delShiftBtn" class="btn btn-danger">⏱️ Shift Box</button>
+                <button id="delMonthBtn" class="btn btn-danger">📅 Month</button>
+                <button id="delAllBtn" class="btn btn-danger">⚠️ All</button>
             </div>
         </div>
 
@@ -247,12 +250,10 @@
     function calculateSPCStats(dataArray, usl, lsl) {
         let validData = dataArray.map(Number).filter(n => !isNaN(n));
         if (validData.length === 0) return { mean: 0, stdDev: 0, cpk: 'N/A' };
-        
         let sum = validData.reduce((a,b)=>a+b,0);
         let mean = sum / validData.length;
         let variance = validData.reduce((a,b)=>a+Math.pow(b-mean,2),0) / (validData.length > 1 ? validData.length - 1 : 1);
         let stdDev = Math.sqrt(variance);
-        
         let cpk = 'N/A';
         if (stdDev > 0) {
             cpk = Math.min((usl - mean) / (3 * stdDev), (mean - lsl) / (3 * stdDev)).toFixed(3);
@@ -273,10 +274,8 @@
                 if (row.time > maxTime) maxTime = row.time;
             });
         }
-        
         let targetTime = maxTime > 0 ? new Date(maxTime) : new Date();
         let h = targetTime.getHours();
-        
         let shiftStart = new Date(targetTime);
         let shiftEnd = new Date(targetTime);
         shiftStart.setMinutes(0, 0, 0);
@@ -301,19 +300,17 @@
         renderCharts();
     }
 
-    // --- BUTTON CONTROLS ---
+    // --- TIME NAVIGATION BUTTONS ---
     document.getElementById('jumpLatestBtn').addEventListener('click', snapToLatest);
 
     document.getElementById('prevShiftBtn').addEventListener('click', function() {
         let startInput = document.getElementById('highlightStart').value;
         let endInput = document.getElementById('highlightEnd').value;
         if (!startInput || !endInput) return;
-
         let startDate = new Date(startInput);
         let endDate = new Date(endInput);
         startDate.setHours(startDate.getHours() - 6);
         endDate.setHours(endDate.getHours() - 6);
-
         document.getElementById('highlightStart').value = formatForInput(startDate);
         document.getElementById('highlightEnd').value = formatForInput(endDate);
         renderCharts();
@@ -323,29 +320,24 @@
         let startInput = document.getElementById('highlightStart').value;
         let endInput = document.getElementById('highlightEnd').value;
         if (!startInput || !endInput) return;
-
         let startDate = new Date(startInput);
         let endDate = new Date(endInput);
         startDate.setHours(startDate.getHours() + 6);
         endDate.setHours(endDate.getHours() + 6);
-
         document.getElementById('highlightStart').value = formatForInput(startDate);
         document.getElementById('highlightEnd').value = formatForInput(endDate);
         renderCharts();
     });
 
-    // NEW: Copy Text Button Logic
+    // --- TEXT COPY BUTTON ---
     document.getElementById('copyTextBtn').addEventListener('click', async function() {
         const btn = this;
         const orig = btn.innerHTML;
         btn.innerHTML = '✅ Copied!';
-        
         const textToCopy = "Please refer to the above for the W1-W4 102 Wet Process Thickness and Air Permeability SPC.\n请参考上方关于 W1-W4 102 湿法厚度与透气度的 SPC。";
-        
         try {
             await navigator.clipboard.writeText(textToCopy);
         } catch (err) {
-            // Fallback if browser blocks standard clipboard API
             const el = document.createElement('textarea');
             el.value = textToCopy;
             document.body.appendChild(el);
@@ -353,8 +345,72 @@
             document.execCommand('copy');
             document.body.removeChild(el);
         }
-        
         setTimeout(() => btn.innerHTML = orig, 2500);
+    });
+
+    // --- DELETION LOGIC (3 BUTTONS) ---
+    function checkAdminAuth() {
+        let input = prompt("ADMIN REQUIRED: Enter password to proceed with deletion:");
+        if (input === "QAPermission") return true;
+        if (input !== null) alert("❌ Incorrect Password. Action aborted.");
+        return false;
+    }
+
+    // 1. Delete Shift Box
+    document.getElementById('delShiftBtn').addEventListener('click', function() {
+        let startInput = document.getElementById('highlightStart').value;
+        let endInput = document.getElementById('highlightEnd').value;
+        if (!startInput || !endInput) { alert("Please select a Red Box Start and End time first."); return; }
+        let delStart = new Date(startInput).getTime();
+        let delEnd = new Date(endInput).getTime();
+        
+        if (checkAdminAuth()) {
+            if(confirm(`FINAL WARNING: Delete data between ${startInput.replace('T', ' ')} and ${endInput.replace('T', ' ')}?`)) {
+                let updatedData = { W1: [], W2: [], W3: [], W4: [], W5: [], W6: [] };
+                let deletedCount = 0;
+                for(let line in globalData) {
+                    globalData[line].forEach(item => {
+                        if (item.time < delStart || item.time > delEnd) updatedData[line].push(item);
+                        else deletedCount++;
+                    });
+                }
+                if (deletedCount === 0) { alert("No data found in this timeframe to delete."); return; }
+                database.ref('mesGlobalData').set(updatedData).then(() => alert(`Successfully deleted ${deletedCount} barcodes.`));
+            }
+        }
+    });
+
+    // 2. Delete Month
+    document.getElementById('delMonthBtn').addEventListener('click', function() {
+        let targetMonth = prompt("Enter the precise month to delete (Format YYYY-MM, e.g., 2026-11):");
+        if (!targetMonth) return;
+        if (!/^\d{4}-\d{2}$/.test(targetMonth)) { alert("❌ Invalid format. You must type YYYY-MM exactly."); return; }
+        
+        if (checkAdminAuth()) {
+            if(confirm(`FINAL WARNING: Are you absolutely sure you want to permanently delete ALL data from ${targetMonth}?`)) {
+                let updatedData = { W1: [], W2: [], W3: [], W4: [], W5: [], W6: [] };
+                let deletedCount = 0;
+                for(let line in globalData) {
+                    globalData[line].forEach(item => {
+                        let d = new Date(item.time);
+                        let itemMonth = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+                        if (itemMonth !== targetMonth) updatedData[line].push(item);
+                        else deletedCount++;
+                    });
+                }
+                if (deletedCount === 0) { alert(`No data found for ${targetMonth} to delete.`); return; }
+                database.ref('mesGlobalData').set(updatedData).then(() => alert(`Successfully deleted ${deletedCount} barcodes from ${targetMonth}.`));
+            }
+        }
+    });
+
+    // 3. Clear All
+    document.getElementById('delAllBtn').addEventListener('click', function() {
+        if (checkAdminAuth()) {
+            if(confirm("FINAL WARNING: Are you absolutely sure you want to WIPE THE ENTIRE DATABASE for all time?")) {
+                database.ref('mesGlobalData').remove().then(() => alert("Database wiped."));
+            }
+        }
     });
 
     // --- FIREBASE REAL-TIME SYNC LISTENER ---
@@ -367,14 +423,10 @@
             if (savedData) {
                 ['W1', 'W2', 'W3', 'W4', 'W5', 'W6'].forEach(line => {
                     let ld = savedData[line] || [];
-                    if (!Array.isArray(ld)) {
-                        ld = Object.values(ld); 
-                    }
+                    if (!Array.isArray(ld)) ld = Object.values(ld); 
                     globalData[line] = ld;
                     globalData[line].forEach(item => {
-                        if (typeof item.time === 'string') {
-                            item.time = new Date(item.time).getTime();
-                        }
+                        if (typeof item.time === 'string') item.time = new Date(item.time).getTime();
                     });
                 });
                 
@@ -388,22 +440,6 @@
                 statusEl.className = "status";
             }
         });
-    });
-
-    document.getElementById('clearDbBtn').addEventListener('click', function() {
-        let authInput = prompt("ADMIN REQUIRED: Enter password to completely wipe the live cloud database for everyone:");
-        
-        if (authInput === "QAPermission") {
-            if(confirm("FINAL WARNING: Password accepted. Are you absolutely sure you want to delete all MES data?")) {
-                database.ref('mesGlobalData').remove().then(function() {
-                    alert("Database successfully wiped.");
-                }).catch(function(error) {
-                    alert("Error wiping database: " + error.message);
-                });
-            }
-        } else if (authInput !== null) {
-            alert("❌ Incorrect Password. Database wipe aborted.");
-        }
     });
 
     // --- EXCEL FILE PARSING & CLOUD UPLOAD ---
@@ -477,7 +513,6 @@
         }
 
         database.ref('mesGlobalData').set(globalData).catch(err => console.log("DB Error:", err));
-
         return addedCount;
     }
 
@@ -494,16 +529,10 @@
             try {
                 const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
                 const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-                
                 let newAddedCount = parseMESData(jsonData); 
                 
-                if (newAddedCount > 0) {
-                    statusEl.textContent = `✅ Success: Pushed ${newAddedCount} NEW measured barcodes into the cloud. Syncing everyone's screens...`;
-                    statusEl.className = "status success";
-                } else {
-                    statusEl.textContent = `✅ Complete: File parsed, but no new unique barcodes were found.`;
-                    statusEl.className = "status success";
-                }
+                statusEl.textContent = `✅ Success: Upload Processed! Added or Refreshed ${newAddedCount} barcodes in the cloud.`;
+                statusEl.className = "status success";
             } catch (error) {
                 statusEl.textContent = "❌ Error parsing file structure.";
                 statusEl.className = "status error";
@@ -520,7 +549,6 @@
             <div class="spc-info-box-value" style="background: transparent; border: none; font-size: 15px; font-weight: bold; color: #ff0000; text-align: center; padding: 0;">${dynamicStats.cpk}</div>
         </div>`;
 
-        // NEW: Replaced the entire header with the requested bold, centered format
         return `
         <div class="spc-card">
             <div class="spc-title">
