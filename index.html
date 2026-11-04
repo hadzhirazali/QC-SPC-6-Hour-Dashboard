@@ -113,14 +113,18 @@
             </div>
         </div>
 
-        <div class="controls-row" style="background: #fff3e0; padding: 10px; border-radius: 6px; border: 1px solid #ffe0b2;">
+        <div class="controls-row" style="background: #fff3e0; padding: 10px; border-radius: 6px; border: 1px solid #ffe0b2; display: flex; align-items: center; flex-wrap: wrap;">
             <span class="label-bold" style="color: #e65100;">🔴 Focus Timeframe (Displays Red Box + 24hrs Before):</span>
             
+            <!-- FIXED: Changed onchange to save to Local Storage automatically -->
             <label class="label-bold" style="margin-left: 10px;">Red Box Start:</label>
-            <input type="datetime-local" id="highlightStart" class="date-input" onchange="renderCharts()">
+            <input type="datetime-local" id="highlightStart" class="date-input" onchange="saveTimeframeAndRender()">
             
             <label class="label-bold" style="margin-left: 10px;">Red Box End (Graph Cutoff):</label>
-            <input type="datetime-local" id="highlightEnd" class="date-input" onchange="renderCharts()">
+            <input type="datetime-local" id="highlightEnd" class="date-input" onchange="saveTimeframeAndRender()">
+            
+            <!-- NEW: Next Shift Button -->
+            <button id="nextShiftBtn" class="btn" style="margin-left: auto; background-color: #e3f2fd; border-color: #90caf9; color: #1565c0;">⏭️ Next 6h Shift</button>
         </div>
     </header>
 
@@ -253,64 +257,91 @@
         return { mean: mean, stdDev: stdDev, cpk: cpk };
     }
 
-    function getLatestGlobalTime() {
-        let maxTime = 0;
-        for (let line in globalData) {
-            globalData[line].forEach(row => {
-                let t = new Date(row.time).getTime();
-                if (t > maxTime) maxTime = t;
-            });
-        }
-        return maxTime > 0 ? new Date(maxTime) : null;
-    }
-
     function formatForInput(d) {
         if(isNaN(d)) return "";
         const pad = n => String(n).padStart(2, '0');
         return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     }
 
-    // FIXED: Safely snaps the timeboxes to the active 6-hour shift, perfectly locked to 00 minutes
-    function updateTimeInputs(maxTimeObj) {
-        // Fallback to the user's current clock time if the database is wiped clean!
-        if (!maxTimeObj) {
-            maxTimeObj = new Date();
-        }
-        
-        let targetTime = new Date(maxTimeObj);
-        let h = targetTime.getHours();
-        
-        let shiftStart = new Date(targetTime);
-        let shiftEnd = new Date(targetTime);
+    // FIXED: Initializes timeframe but respects Local Storage if the user previously set it!
+    function initializeTimeframe(maxTimeObj) {
+        let savedStart = localStorage.getItem('mesSavedShiftStart');
+        let savedEnd = localStorage.getItem('mesSavedShiftEnd');
 
-        // This permanently prevents messy times like "05:03 AM" by forcing exactly :00
-        shiftStart.setMinutes(0, 0, 0);
-        shiftEnd.setMinutes(0, 0, 0);
+        // If the browser remembers a timeframe from a previous session, use it!
+        if (savedStart && savedEnd) {
+            document.getElementById('highlightStart').value = savedStart;
+            document.getElementById('highlightEnd').value = savedEnd;
+        } else {
+            // Otherwise, calculate the current/latest shift bounds
+            if (!maxTimeObj) maxTimeObj = new Date();
+            
+            let targetTime = new Date(maxTimeObj);
+            let h = targetTime.getHours();
+            
+            let shiftStart = new Date(targetTime);
+            let shiftEnd = new Date(targetTime);
 
-        if (h >= 4 && h < 10) {
-            shiftStart.setHours(4);
-            shiftEnd.setHours(10);
-        } else if (h >= 10 && h < 16) {
-            shiftStart.setHours(10);
-            shiftEnd.setHours(16);
-        } else if (h >= 16 && h < 22) {
-            shiftStart.setHours(16);
-            shiftEnd.setHours(22);
-        } else { // 22:00 to 04:00 AM
-            if (h >= 22) {
-                shiftStart.setHours(22);
-                shiftEnd.setDate(shiftEnd.getDate() + 1);
-                shiftEnd.setHours(4);
-            } else {
-                shiftStart.setDate(shiftStart.getDate() - 1);
-                shiftStart.setHours(22);
-                shiftEnd.setHours(4);
+            shiftStart.setMinutes(0, 0, 0);
+            shiftEnd.setMinutes(0, 0, 0);
+
+            if (h >= 4 && h < 10) {
+                shiftStart.setHours(4); shiftEnd.setHours(10);
+            } else if (h >= 10 && h < 16) {
+                shiftStart.setHours(10); shiftEnd.setHours(16);
+            } else if (h >= 16 && h < 22) {
+                shiftStart.setHours(16); shiftEnd.setHours(22);
+            } else { 
+                if (h >= 22) {
+                    shiftStart.setHours(22); shiftEnd.setDate(shiftEnd.getDate() + 1); shiftEnd.setHours(4);
+                } else {
+                    shiftStart.setDate(shiftStart.getDate() - 1); shiftStart.setHours(22); shiftEnd.setHours(4);
+                }
             }
-        }
 
-        document.getElementById('highlightStart').value = formatForInput(shiftStart);
-        document.getElementById('highlightEnd').value = formatForInput(shiftEnd);
+            let newStart = formatForInput(shiftStart);
+            let newEnd = formatForInput(shiftEnd);
+            
+            document.getElementById('highlightStart').value = newStart;
+            document.getElementById('highlightEnd').value = newEnd;
+            
+            // Save it for the future
+            localStorage.setItem('mesSavedShiftStart', newStart);
+            localStorage.setItem('mesSavedShiftEnd', newEnd);
+        }
     }
+
+    // NEW: Save manually edited timeframes to browser memory
+    function saveTimeframeAndRender() {
+        const startVal = document.getElementById('highlightStart').value;
+        const endVal = document.getElementById('highlightEnd').value;
+        if (startVal && endVal) {
+            localStorage.setItem('mesSavedShiftStart', startVal);
+            localStorage.setItem('mesSavedShiftEnd', endVal);
+        }
+        renderCharts();
+    }
+
+    // NEW: Button Logic to automatically jump forward exactly 6 hours
+    document.getElementById('nextShiftBtn').addEventListener('click', function() {
+        let startInput = document.getElementById('highlightStart').value;
+        let endInput = document.getElementById('highlightEnd').value;
+        
+        if (!startInput || !endInput) return;
+
+        let startDate = new Date(startInput);
+        let endDate = new Date(endInput);
+
+        // Advance both inputs by exactly 6 hours
+        startDate.setHours(startDate.getHours() + 6);
+        endDate.setHours(endDate.getHours() + 6);
+
+        document.getElementById('highlightStart').value = formatForInput(startDate);
+        document.getElementById('highlightEnd').value = formatForInput(endDate);
+        
+        // Save and draw
+        saveTimeframeAndRender();
+    });
 
     // --- FIREBASE REAL-TIME SYNC LISTENER ---
     document.addEventListener('DOMContentLoaded', () => {
@@ -330,14 +361,24 @@
                 statusEl.textContent = "✅ Status: Live cloud data synced. Watching for real-time updates...";
                 statusEl.className = "status success";
                 
-                let latest = getLatestGlobalTime();
-                updateTimeInputs(latest); // Use latest data time
+                // Get latest time, but initializeTimeframe will respect Local Storage if it exists
+                let latest = null;
+                let maxTime = 0;
+                for (let line in globalData) {
+                    globalData[line].forEach(row => {
+                        let t = row.time.getTime();
+                        if (t > maxTime) maxTime = t;
+                    });
+                }
+                if(maxTime > 0) latest = new Date(maxTime);
+                
+                initializeTimeframe(latest);
                 renderCharts(); 
             } else {
                 globalData = { W1: [], W2: [], W3: [], W4: [], W5: [], W6: [] };
                 
-                // IF DB IS EMPTY: Immediately populate inputs using the computer's current real-time clock!
-                updateTimeInputs(new Date()); 
+                // If DB is empty, it will pull from Local Storage, or default to current clock
+                initializeTimeframe(new Date()); 
                 
                 renderCharts(); 
                 statusEl.textContent = "Status: Cloud Database is completely empty. Waiting for Data Upload...";
@@ -522,12 +563,19 @@
         let highlightStart = new Date(highlightStartStr);
         let highlightEnd = new Date(highlightEndStr);
         
+        // Auto-Corrects the Date Boxes and updates Local Storage if reversed
         if (highlightStart > highlightEnd) {
             let temp = highlightStart;
             highlightStart = highlightEnd;
             highlightEnd = temp;
-            document.getElementById('highlightStart').value = formatForInput(highlightStart);
-            document.getElementById('highlightEnd').value = formatForInput(highlightEnd);
+            
+            let fixedStart = formatForInput(highlightStart);
+            let fixedEnd = formatForInput(highlightEnd);
+            
+            document.getElementById('highlightStart').value = fixedStart;
+            document.getElementById('highlightEnd').value = fixedEnd;
+            localStorage.setItem('mesSavedShiftStart', fixedStart);
+            localStorage.setItem('mesSavedShiftEnd', fixedEnd);
         }
 
         const displayStartTime = new Date(highlightEnd.getTime() - (24 * 60 * 60 * 1000));
