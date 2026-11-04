@@ -122,7 +122,6 @@
             <label class="label-bold" style="margin-left: 10px;">Red Box End (Graph Cutoff):</label>
             <input type="datetime-local" id="highlightEnd" class="date-input" onchange="renderCharts()">
             
-            <!-- NEW: Added "Jump to Latest" button to auto-snap to the newest data if you get lost -->
             <div style="margin-left: auto; display: flex; gap: 10px;">
                 <button id="jumpLatestBtn" class="btn" style="background-color: #e8f5e9; border-color: #81c784; color: #2e7d32;">🔄 Jump to Latest</button>
                 <button id="prevShiftBtn" class="btn" style="background-color: #f3e5f5; border-color: #ce93d8; color: #6a1b9a;">⏮️ Prev 6h</button>
@@ -266,13 +265,12 @@
         return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     }
 
-    // FIXED: Analyzes the absolute latest data in the database and aggressively forces the UI to center on it!
+    // FIXED: Safely snaps the timeboxes to the active 6-hour shift based on exact DB newest data
     function snapToLatest() {
         let maxTime = 0;
         for (let line in globalData) {
             globalData[line].forEach(row => {
-                let t = row.time.getTime();
-                if (t > maxTime) maxTime = t;
+                if (row.time > maxTime) maxTime = row.time;
             });
         }
         
@@ -303,7 +301,6 @@
         renderCharts();
     }
 
-    // Controls
     document.getElementById('jumpLatestBtn').addEventListener('click', snapToLatest);
 
     document.getElementById('prevShiftBtn').addEventListener('click', function() {
@@ -313,7 +310,6 @@
 
         let startDate = new Date(startInput);
         let endDate = new Date(endInput);
-
         startDate.setHours(startDate.getHours() - 6);
         endDate.setHours(endDate.getHours() - 6);
 
@@ -329,7 +325,6 @@
 
         let startDate = new Date(startInput);
         let endDate = new Date(endInput);
-
         startDate.setHours(startDate.getHours() + 6);
         endDate.setHours(endDate.getHours() + 6);
 
@@ -347,22 +342,21 @@
             
             if (savedData) {
                 ['W1', 'W2', 'W3', 'W4', 'W5', 'W6'].forEach(line => {
-                    // CRITICAL FIREBASE BUG FIX: Converts Objects back into Arrays to prevent the graph crash
+                    // FIXED: Ensure Firebase arrays stay arrays, and timestamps stay numeric!
                     let ld = savedData[line] || [];
                     if (!Array.isArray(ld)) {
                         ld = Object.values(ld); 
                     }
-                    
                     globalData[line] = ld;
                     globalData[line].forEach(item => {
-                        if (item && item.time) item.time = new Date(item.time);
+                        if (typeof item.time === 'string') {
+                            item.time = new Date(item.time).getTime();
+                        }
                     });
                 });
                 
                 statusEl.textContent = "✅ Status: Live cloud data synced. Watching for real-time updates...";
                 statusEl.className = "status success";
-                
-                // Immediately force the view to the latest data timeframe!
                 snapToLatest();
             } else {
                 globalData = { W1: [], W2: [], W3: [], W4: [], W5: [], W6: [] };
@@ -417,7 +411,7 @@
 
             if (!line || !timeStr || !barcode) return;
 
-            // FIXED: Added an aggressive date format fallback parser just in case the timestamp gets weird
+            // FIXED: Parses Excel dates and explicitly saves them as raw Numeric Timestamps
             let dateObj;
             if (typeof timeStr === 'number') {
                 let utcMs = Math.round((timeStr - 25569) * 86400 * 1000);
@@ -448,7 +442,7 @@
                 }
                 tempMap[line].set(barcode, {
                     barcode: barcode,
-                    time: dateObj,
+                    time: dateObj.getTime(), // <--- CRITICAL FIX: Forces numeric timestamp for Firebase
                     airValue: airVal,
                     thickValue: thickVal
                 });
@@ -457,7 +451,7 @@
 
         for(let line in tempMap) {
             globalData[line] = Array.from(tempMap[line].values());
-            globalData[line].sort((a,b) => new Date(a.time) - new Date(b.time));
+            globalData[line].sort((a,b) => a.time - b.time); // Numeric sort
         }
 
         database.ref('mesGlobalData').set(globalData).catch(err => console.log("DB Error:", err));
@@ -561,21 +555,17 @@
         let highlightStart = new Date(highlightStartStr);
         let highlightEnd = new Date(highlightEndStr);
         
-        // Auto-Corrects the Date Boxes
         if (highlightStart > highlightEnd) {
             let temp = highlightStart;
             highlightStart = highlightEnd;
             highlightEnd = temp;
-            
-            let fixedStart = formatForInput(highlightStart);
-            let fixedEnd = formatForInput(highlightEnd);
-            
-            document.getElementById('highlightStart').value = fixedStart;
-            document.getElementById('highlightEnd').value = fixedEnd;
+            document.getElementById('highlightStart').value = formatForInput(highlightStart);
+            document.getElementById('highlightEnd').value = formatForInput(highlightEnd);
         }
 
-        const displayStartTime = new Date(highlightEnd.getTime() - (24 * 60 * 60 * 1000));
-        const displayEndTime = highlightEnd;
+        // We use getTime() here to safely compare numbers against the raw database values
+        const displayStartTimeMs = highlightEnd.getTime() - (24 * 60 * 60 * 1000);
+        const displayEndTimeMs = highlightEnd.getTime();
 
         const formatDate = (dateObj) => {
             if (isNaN(dateObj)) return '';
@@ -585,10 +575,10 @@
         selectedLines.forEach(line => {
             const lineObj = getLineConfig(line, typeKey);
             let rawLines = globalData[line] || [];
-            
             if (rawLines.length === 0) return; 
 
-            let filteredRows = rawLines.filter(row => new Date(row.time) >= displayStartTime && new Date(row.time) <= displayEndTime);
+            // Filter cleanly using raw numeric timestamps
+            let filteredRows = rawLines.filter(row => row.time >= displayStartTimeMs && row.time <= displayEndTimeMs);
 
             let groupedData = {};
             filteredRows.forEach(row => {
@@ -596,7 +586,7 @@
                 if(!groupedData[exactBarcode]) {
                     groupedData[exactBarcode] = { timeSum: 0, count: 0, airSum: 0, airC: 0, thickSum: 0, thickC: 0 };
                 }
-                groupedData[exactBarcode].timeSum += new Date(row.time).getTime();
+                groupedData[exactBarcode].timeSum += row.time;
                 groupedData[exactBarcode].count++;
                 if(row.airValue !== null) { groupedData[exactBarcode].airSum += row.airValue; groupedData[exactBarcode].airC++; }
                 if(row.thickValue !== null) { groupedData[exactBarcode].thickSum += row.thickValue; groupedData[exactBarcode].thickC++; }
@@ -637,8 +627,10 @@
             let dynamicStats = calculateSPCStats(chartData, lineObj.USL, lineObj.LSL);
 
             let boxStartIndex = -1, boxEndIndex = -1;
+            let hlStartMs = highlightStart.getTime();
+            let hlEndMs = highlightEnd.getTime();
             for(let i=0; i<chartTimeMap.length; i++) {
-                if (chartTimeMap[i] >= highlightStart && chartTimeMap[i] <= highlightEnd) {
+                if (chartTimeMap[i].getTime() >= hlStartMs && chartTimeMap[i].getTime() <= hlEndMs) {
                     if (boxStartIndex === -1) boxStartIndex = i;
                     boxEndIndex = i; 
                 }
