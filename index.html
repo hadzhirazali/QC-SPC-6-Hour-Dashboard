@@ -116,15 +116,17 @@
         <div class="controls-row" style="background: #fff3e0; padding: 10px; border-radius: 6px; border: 1px solid #ffe0b2; display: flex; align-items: center; flex-wrap: wrap;">
             <span class="label-bold" style="color: #e65100;">🔴 Focus Timeframe (Displays Red Box + 24hrs Before):</span>
             
-            <!-- FIXED: Changed onchange to save to Local Storage automatically -->
             <label class="label-bold" style="margin-left: 10px;">Red Box Start:</label>
             <input type="datetime-local" id="highlightStart" class="date-input" onchange="saveTimeframeAndRender()">
             
             <label class="label-bold" style="margin-left: 10px;">Red Box End (Graph Cutoff):</label>
             <input type="datetime-local" id="highlightEnd" class="date-input" onchange="saveTimeframeAndRender()">
             
-            <!-- NEW: Next Shift Button -->
-            <button id="nextShiftBtn" class="btn" style="margin-left: auto; background-color: #e3f2fd; border-color: #90caf9; color: #1565c0;">⏭️ Next 6h Shift</button>
+            <!-- NEW: Previous and Next Shift Buttons grouped on the right -->
+            <div style="margin-left: auto; display: flex; gap: 10px;">
+                <button id="prevShiftBtn" class="btn" style="background-color: #f3e5f5; border-color: #ce93d8; color: #6a1b9a;">⏮️ Prev 6h Shift</button>
+                <button id="nextShiftBtn" class="btn" style="background-color: #e3f2fd; border-color: #90caf9; color: #1565c0;">⏭️ Next 6h Shift</button>
+            </div>
         </div>
     </header>
 
@@ -263,17 +265,14 @@
         return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     }
 
-    // FIXED: Initializes timeframe but respects Local Storage if the user previously set it!
     function initializeTimeframe(maxTimeObj) {
         let savedStart = localStorage.getItem('mesSavedShiftStart');
         let savedEnd = localStorage.getItem('mesSavedShiftEnd');
 
-        // If the browser remembers a timeframe from a previous session, use it!
         if (savedStart && savedEnd) {
             document.getElementById('highlightStart').value = savedStart;
             document.getElementById('highlightEnd').value = savedEnd;
         } else {
-            // Otherwise, calculate the current/latest shift bounds
             if (!maxTimeObj) maxTimeObj = new Date();
             
             let targetTime = new Date(maxTimeObj);
@@ -305,13 +304,11 @@
             document.getElementById('highlightStart').value = newStart;
             document.getElementById('highlightEnd').value = newEnd;
             
-            // Save it for the future
             localStorage.setItem('mesSavedShiftStart', newStart);
             localStorage.setItem('mesSavedShiftEnd', newEnd);
         }
     }
 
-    // NEW: Save manually edited timeframes to browser memory
     function saveTimeframeAndRender() {
         const startVal = document.getElementById('highlightStart').value;
         const endVal = document.getElementById('highlightEnd').value;
@@ -322,7 +319,26 @@
         renderCharts();
     }
 
-    // NEW: Button Logic to automatically jump forward exactly 6 hours
+    // NEW: Previous Shift Button Logic
+    document.getElementById('prevShiftBtn').addEventListener('click', function() {
+        let startInput = document.getElementById('highlightStart').value;
+        let endInput = document.getElementById('highlightEnd').value;
+        
+        if (!startInput || !endInput) return;
+
+        let startDate = new Date(startInput);
+        let endDate = new Date(endInput);
+
+        startDate.setHours(startDate.getHours() - 6);
+        endDate.setHours(endDate.getHours() - 6);
+
+        document.getElementById('highlightStart').value = formatForInput(startDate);
+        document.getElementById('highlightEnd').value = formatForInput(endDate);
+        
+        saveTimeframeAndRender();
+    });
+
+    // Next Shift Button Logic
     document.getElementById('nextShiftBtn').addEventListener('click', function() {
         let startInput = document.getElementById('highlightStart').value;
         let endInput = document.getElementById('highlightEnd').value;
@@ -332,14 +348,12 @@
         let startDate = new Date(startInput);
         let endDate = new Date(endInput);
 
-        // Advance both inputs by exactly 6 hours
         startDate.setHours(startDate.getHours() + 6);
         endDate.setHours(endDate.getHours() + 6);
 
         document.getElementById('highlightStart').value = formatForInput(startDate);
         document.getElementById('highlightEnd').value = formatForInput(endDate);
         
-        // Save and draw
         saveTimeframeAndRender();
     });
 
@@ -361,7 +375,6 @@
                 statusEl.textContent = "✅ Status: Live cloud data synced. Watching for real-time updates...";
                 statusEl.className = "status success";
                 
-                // Get latest time, but initializeTimeframe will respect Local Storage if it exists
                 let latest = null;
                 let maxTime = 0;
                 for (let line in globalData) {
@@ -377,7 +390,6 @@
             } else {
                 globalData = { W1: [], W2: [], W3: [], W4: [], W5: [], W6: [] };
                 
-                // If DB is empty, it will pull from Local Storage, or default to current clock
                 initializeTimeframe(new Date()); 
                 
                 renderCharts(); 
@@ -563,7 +575,6 @@
         let highlightStart = new Date(highlightStartStr);
         let highlightEnd = new Date(highlightEndStr);
         
-        // Auto-Corrects the Date Boxes and updates Local Storage if reversed
         if (highlightStart > highlightEnd) {
             let temp = highlightStart;
             highlightStart = highlightEnd;
