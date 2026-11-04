@@ -55,12 +55,10 @@
 
         /* SPC Chart Specific Styles */
         .spc-card { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; display: flex; flex-direction: column; overflow: hidden; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .spc-header { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--line); font-size: 13px; background-color: #fcfcfc; align-items: center; }
-        .spc-input-group { display: flex; align-items: center; gap: 4px; }
-        .spc-input-group label { font-weight: 600; white-space: nowrap; }
-        .spc-mock-input { border: 1px solid #ccc; padding: 3px 6px; font-size: 12px; background: #f9f9f9; color: #555; border-radius: 2px; white-space: nowrap; display: inline-block;}
         
-        .spc-title { text-align: center; font-size: 20px; padding: 12px 0 0 0; letter-spacing: 0.5px; font-weight: 600;}
+        /* NEW: Bold, Centered Title replacing the old header */
+        .spc-title { text-align: center; font-size: 16px; padding: 12px 10px; font-weight: bold; background-color: #fcfcfc; border-bottom: 1px solid var(--line); color: #111;}
+        
         .spc-body { display: flex; width: 100%; height: 420px; }
         .spc-echarts-container { flex-grow: 1; height: 100%; min-width: 0; }
         
@@ -87,8 +85,11 @@
                 <h1>MES SPC Barcode Dashboard <span class="cloud-badge">☁️ Live Cloud Sync</span></h1>
                 <div class="status" id="uploadStatus">Status: Connecting to Firebase Database...</div>
             </div>
-            <div style="display: flex; gap: 10px;">
-                <button id="copyImageBtn" class="btn" style="border-color: var(--active); color: var(--active);">📸 Copy Image</button>
+            
+            <!-- NEW: Copy Text Button added below Copy Image -->
+            <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end; min-width: 120px;">
+                <button id="copyImageBtn" class="btn" style="border-color: var(--active); color: var(--active); width: 100%;">📸 Copy Image</button>
+                <button id="copyTextBtn" class="btn" style="border-color: #1e8e3e; color: #1e8e3e; width: 100%;">📝 Copy Text</button>
             </div>
         </div>
 
@@ -158,30 +159,30 @@
 
     const spcConfigs = {
         air: {
-            titleSuffix: "基膜制程检测透气率|Air permeability", inspItem: "SF005|透气率",
+            inspItem: "SF005|Air Permeability",
             defaultUSL: 80, defaultLSL: 30, defaultCL: 55, defaultSigma: 3,
             lines: [
-                { id: "W1", name: "W1|W1", material: "200000627|W/SW509J", USL: 80, LSL: 30, CL: 57.8795, sigma: 2.0975, CPK: "N/A" },
-                { id: "W2", name: "W2|W2", material: "200000627|W/SW509J", USL: 80, LSL: 30, CL: 57.4514, sigma: 2.9388, CPK: "N/A" },
-                { id: "W3", name: "W3|W3", material: "200000137|W/SW810K", USL: 85, LSL: 25, CL: 53.8705, sigma: 0.9949, CPK: "N/A" },
-                { id: "W4", name: "W4|W4", material: "200000627|W/SW509J", USL: 80, LSL: 30, CL: 56.1333, sigma: 3.3508, CPK: "N/A" }
+                { id: "W1", name: "W1|104", material: "200000627|W/SW509J", USL: 80, LSL: 30, CL: 57.8795, sigma: 2.0975, CPK: "N/A" },
+                { id: "W2", name: "W2|104", material: "200000627|W/SW509J", USL: 80, LSL: 30, CL: 57.4514, sigma: 2.9388, CPK: "N/A" },
+                { id: "W3", name: "W3|104", material: "200000137|W/SW810K", USL: 85, LSL: 25, CL: 53.8705, sigma: 0.9949, CPK: "N/A" },
+                { id: "W4", name: "W4|104", material: "200000627|W/SW509J", USL: 80, LSL: 30, CL: 56.1333, sigma: 3.3508, CPK: "N/A" }
             ]
         },
         thick: {
-            titleSuffix: "基膜制程检测单点厚度|Thickness", inspItem: "SF002|单点厚度",
+            inspItem: "SF002|Thickness",
             defaultUSL: 9.5, defaultLSL: 7.1, defaultCL: 8.3, defaultSigma: 0.15,
             lines: [
-                { id: "W1", name: "W1|W1", material: "200000627|W/SW509J", USL: 9.5, LSL: 7.1, CL: 8.3827, sigma: 0.1693, CPK: "N/A" },
-                { id: "W2", name: "W2|W2", material: "200000627|W/SW509J", USL: 9.5, LSL: 7.1, CL: 8.3130, sigma: 0.1351, CPK: "N/A" },
-                { id: "W3", name: "W3|W3", material: "200000137|W/SW810K", USL: 11.1, LSL: 8.9, CL: 9.8748, sigma: 0.1209, CPK: "N/A" },
-                { id: "W4", name: "W4|W4", material: "200000627|W/SW509J", USL: 9.5, LSL: 7.1, CL: 8.3671, sigma: 0.1068, CPK: "N/A" }
+                { id: "W1", name: "W1|104", material: "200000627|W/SW509J", USL: 9.5, LSL: 7.1, CL: 8.3827, sigma: 0.1693, CPK: "N/A" },
+                { id: "W2", name: "W2|104", material: "200000627|W/SW509J", USL: 9.5, LSL: 7.1, CL: 8.3130, sigma: 0.1351, CPK: "N/A" },
+                { id: "W3", name: "W3|104", material: "200000137|W/SW810K", USL: 11.1, LSL: 8.9, CL: 9.8748, sigma: 0.1209, CPK: "N/A" },
+                { id: "W4", name: "W4|104", material: "200000627|W/SW509J", USL: 9.5, LSL: 7.1, CL: 8.3671, sigma: 0.1068, CPK: "N/A" }
             ]
         }
     };
 
     function getLineConfig(line, typeKey) {
         let lineObj = spcConfigs[typeKey].lines.find(l => l.id === line);
-        return lineObj || { id: line, name: `${line}|${line}`, material: "200000627|W/SW509J", USL: spcConfigs[typeKey].defaultUSL, LSL: spcConfigs[typeKey].defaultLSL, CL: spcConfigs[typeKey].defaultCL, sigma: spcConfigs[typeKey].defaultSigma, CPK: "N/A" };
+        return lineObj || { id: line, name: `${line}|104`, material: "200000627|W/SW509J", USL: spcConfigs[typeKey].defaultUSL, LSL: spcConfigs[typeKey].defaultLSL, CL: spcConfigs[typeKey].defaultCL, sigma: spcConfigs[typeKey].defaultSigma, CPK: "N/A" };
     }
 
     function findValueByKeywords(row, keywords) {
@@ -265,7 +266,6 @@
         return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     }
 
-    // FIXED: Safely snaps the timeboxes to the active 6-hour shift based on exact DB newest data
     function snapToLatest() {
         let maxTime = 0;
         for (let line in globalData) {
@@ -301,6 +301,7 @@
         renderCharts();
     }
 
+    // --- BUTTON CONTROLS ---
     document.getElementById('jumpLatestBtn').addEventListener('click', snapToLatest);
 
     document.getElementById('prevShiftBtn').addEventListener('click', function() {
@@ -333,6 +334,29 @@
         renderCharts();
     });
 
+    // NEW: Copy Text Button Logic
+    document.getElementById('copyTextBtn').addEventListener('click', async function() {
+        const btn = this;
+        const orig = btn.innerHTML;
+        btn.innerHTML = '✅ Copied!';
+        
+        const textToCopy = "Please refer to the above for the W1-W4 102 Wet Process Thickness and Air Permeability SPC.\n请参考上方关于 W1-W4 102 湿法厚度与透气度的 SPC。";
+        
+        try {
+            await navigator.clipboard.writeText(textToCopy);
+        } catch (err) {
+            // Fallback if browser blocks standard clipboard API
+            const el = document.createElement('textarea');
+            el.value = textToCopy;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+        }
+        
+        setTimeout(() => btn.innerHTML = orig, 2500);
+    });
+
     // --- FIREBASE REAL-TIME SYNC LISTENER ---
     document.addEventListener('DOMContentLoaded', () => {
         const statusEl = document.getElementById('uploadStatus');
@@ -342,7 +366,6 @@
             
             if (savedData) {
                 ['W1', 'W2', 'W3', 'W4', 'W5', 'W6'].forEach(line => {
-                    // FIXED: Ensure Firebase arrays stay arrays, and timestamps stay numeric!
                     let ld = savedData[line] || [];
                     if (!Array.isArray(ld)) {
                         ld = Object.values(ld); 
@@ -411,7 +434,6 @@
 
             if (!line || !timeStr || !barcode) return;
 
-            // FIXED: Parses Excel dates and explicitly saves them as raw Numeric Timestamps
             let dateObj;
             if (typeof timeStr === 'number') {
                 let utcMs = Math.round((timeStr - 25569) * 86400 * 1000);
@@ -442,7 +464,7 @@
                 }
                 tempMap[line].set(barcode, {
                     barcode: barcode,
-                    time: dateObj.getTime(), // <--- CRITICAL FIX: Forces numeric timestamp for Firebase
+                    time: dateObj.getTime(),
                     airValue: airVal,
                     thickValue: thickVal
                 });
@@ -451,7 +473,7 @@
 
         for(let line in tempMap) {
             globalData[line] = Array.from(tempMap[line].values());
-            globalData[line].sort((a,b) => a.time - b.time); // Numeric sort
+            globalData[line].sort((a,b) => a.time - b.time); 
         }
 
         database.ref('mesGlobalData').set(globalData).catch(err => console.log("DB Error:", err));
@@ -491,24 +513,19 @@
         event.target.value = ''; 
     });
 
-    function buildSPCCard(lineObj, typeKey, formatStart, formatEnd, dynamicStats) {
-        let matPrefix = lineObj.material.split('|')[0];
+    function buildSPCCard(lineObj, typeKey, dynamicStats) {
         let cpkHTML = `
         <div class="spc-info-box" style="border: 2px solid #ff0000; border-radius: 4px; padding: 4px; background: #fff0f0; margin-top: auto; box-shadow: 0 2px 4px rgba(255,0,0,0.15);">
             <div class="spc-info-box-label" style="color: #ff0000; text-align: center; font-size: 13px;">CPK</div>
             <div class="spc-info-box-value" style="background: transparent; border: none; font-size: 15px; font-weight: bold; color: #ff0000; text-align: center; padding: 0;">${dynamicStats.cpk}</div>
         </div>`;
 
+        // NEW: Replaced the entire header with the requested bold, centered format
         return `
         <div class="spc-card">
-            <div class="spc-header">
-                <div class="spc-input-group"><label>开始时间</label><div class="spc-mock-input" style="min-width:130px;">${formatStart} ▾</div></div>
-                <div class="spc-input-group"><label>结束时间</label><div class="spc-mock-input" style="min-width:130px;">${formatEnd} ▾</div></div>
-                <div class="spc-input-group"><label>物料</label><div class="spc-mock-input" style="min-width:160px;">${lineObj.material}</div></div>
-                <div class="spc-input-group"><label>产线名称</label><div class="spc-mock-input" style="min-width:60px;">${lineObj.name}</div></div>
-                <div class="spc-input-group"><label>检验项目</label><div class="spc-mock-input" style="min-width:110px;">${spcConfigs[typeKey].inspItem}</div></div>
+            <div class="spc-title">
+                Production Line : ${lineObj.name} &nbsp;|&nbsp; Model : ${lineObj.material} &nbsp;|&nbsp; Inspection Item : ${spcConfigs[typeKey].inspItem}
             </div>
-            <div class="spc-title">${matPrefix}${spcConfigs[typeKey].titleSuffix}</div>
             <div class="spc-body">
                 <div id="chart_${typeKey}_${lineObj.id}" class="spc-echarts-container"></div>
                 <div class="spc-info-panel">
@@ -563,7 +580,6 @@
             document.getElementById('highlightEnd').value = formatForInput(highlightEnd);
         }
 
-        // We use getTime() here to safely compare numbers against the raw database values
         const displayStartTimeMs = highlightEnd.getTime() - (24 * 60 * 60 * 1000);
         const displayEndTimeMs = highlightEnd.getTime();
 
@@ -577,7 +593,6 @@
             let rawLines = globalData[line] || [];
             if (rawLines.length === 0) return; 
 
-            // Filter cleanly using raw numeric timestamps
             let filteredRows = rawLines.filter(row => row.time >= displayStartTimeMs && row.time <= displayEndTimeMs);
 
             let groupedData = {};
@@ -636,10 +651,7 @@
                 }
             }
 
-            let dispStart = chartTimeMap.length > 0 ? formatDate(chartTimeMap[0]) : '';
-            let dispEnd = chartTimeMap.length > 0 ? formatDate(chartTimeMap[chartTimeMap.length-1]) : '';
-
-            wrapper.insertAdjacentHTML('beforeend', buildSPCCard(lineObj, typeKey, dispStart, dispEnd, dynamicStats));
+            wrapper.insertAdjacentHTML('beforeend', buildSPCCard(lineObj, typeKey, dynamicStats));
             const myChart = echarts.init(document.getElementById(`chart_${typeKey}_${lineObj.id}`));
             chartInstances.push(myChart);
 
