@@ -264,43 +264,45 @@
         return maxTime > 0 ? new Date(maxTime) : null;
     }
 
-    // FIXED: Snaps exactly to standard 6-hour QC shifts (10 AM to 4 PM, 4 PM to 10 PM, etc.)
+    // FIXED: Snaps Start and End inputs exactly to the 6-hour QC shift block
     function updateTimeInputs(maxTimeObj) {
         if (!maxTimeObj) return;
         
-        // 1. Determine the logical target end time based on the exact shift boundaries.
-        let targetEnd = new Date(maxTimeObj);
-        let h = targetEnd.getHours();
+        let targetTime = new Date(maxTimeObj);
+        let h = targetTime.getHours();
         
-        if (h >= 10 && h < 16) {
-            // Shift is 10:00 to 16:00 (04:00 PM)
-            targetEnd.setHours(16, 0, 0, 0);
+        let shiftStart = new Date(targetTime);
+        let shiftEnd = new Date(targetTime);
+
+        // Calculate exact 6-hour shift bounds
+        if (h >= 4 && h < 10) {
+            shiftStart.setHours(4, 0, 0, 0);
+            shiftEnd.setHours(10, 0, 0, 0);
+        } else if (h >= 10 && h < 16) {
+            shiftStart.setHours(10, 0, 0, 0);
+            shiftEnd.setHours(16, 0, 0, 0);
         } else if (h >= 16 && h < 22) {
-            // Shift is 16:00 to 22:00 (10:00 PM)
-            targetEnd.setHours(22, 0, 0, 0);
-        } else if (h >= 22 || h < 4) {
-            // Shift is 22:00 to 04:00 AM (Next Day)
+            shiftStart.setHours(16, 0, 0, 0);
+            shiftEnd.setHours(22, 0, 0, 0);
+        } else { // 22:00 to 04:00 AM (Crosses midnight)
             if (h >= 22) {
-                targetEnd.setDate(targetEnd.getDate() + 1); // Bump to next day if it's currently 10pm-11:59pm
+                shiftStart.setHours(22, 0, 0, 0);
+                shiftEnd.setDate(shiftEnd.getDate() + 1);
+                shiftEnd.setHours(4, 0, 0, 0);
+            } else {
+                shiftStart.setDate(shiftStart.getDate() - 1);
+                shiftStart.setHours(22, 0, 0, 0);
+                shiftEnd.setHours(4, 0, 0, 0);
             }
-            targetEnd.setHours(4, 0, 0, 0);
-        } else if (h >= 4 && h < 10) {
-            // Shift is 04:00 AM to 10:00 AM
-            targetEnd.setHours(10, 0, 0, 0);
         }
-        
-        // 2. Set start time exactly 6 hours prior to the snapped shift end
-        let targetStart = new Date(targetEnd.getTime() - (6 * 60 * 60 * 1000));
-        
-        // 3. Format for the datetime-local input fields (handles timezone offsets correctly)
+
         let tzOffset = (new Date()).getTimezoneOffset() * 60000;
-        
-        let localEnd = new Date(targetEnd.getTime() - tzOffset);
+        let localStart = new Date(shiftStart.getTime() - tzOffset);
+        let localEnd = new Date(shiftEnd.getTime() - tzOffset);
+
+        // Apply Shift Start and Shift End directly to the UI inputs
+        document.getElementById('highlightStart').value = localStart.toISOString().slice(0,16);
         document.getElementById('highlightEnd').value = localEnd.toISOString().slice(0,16);
-        
-        // We still subtract 24 hours for the "display" Red Box Start to show full context in the graph
-        let displayStart = new Date(targetEnd.getTime() - tzOffset - (24 * 60 * 60 * 1000));
-        document.getElementById('highlightStart').value = displayStart.toISOString().slice(0,16);
     }
 
     // --- FIREBASE REAL-TIME SYNC LISTENER ---
@@ -326,6 +328,9 @@
                 renderCharts(); 
             } else {
                 globalData = { W1: [], W2: [], W3: [], W4: [], W5: [], W6: [] };
+                // Clears inputs if database is empty
+                document.getElementById('highlightStart').value = "";
+                document.getElementById('highlightEnd').value = "";
                 renderCharts(); 
                 statusEl.textContent = "Status: Cloud Database is completely empty. Waiting for Data Upload...";
                 statusEl.className = "status";
@@ -333,7 +338,6 @@
         });
     });
 
-    // FIXED: ADDED PASSWORD PROTECTION TO DB WIPE
     document.getElementById('clearDbBtn').addEventListener('click', function() {
         let authInput = prompt("ADMIN REQUIRED: Enter password to completely wipe the live cloud database for everyone:");
         
@@ -504,7 +508,9 @@
 
         const highlightStart = new Date(highlightStartStr);
         const highlightEnd = new Date(highlightEndStr);
-        const displayStartTime = new Date(highlightStart.getTime() - (24 * 60 * 60 * 1000));
+        
+        // FIXED: Display graph 24 hours back from the End Cutoff, but Red Box highlights Shift only.
+        const displayStartTime = new Date(highlightEnd.getTime() - (24 * 60 * 60 * 1000));
         const displayEndTime = highlightEnd;
 
         const formatDate = (dateObj) => {
@@ -566,6 +572,7 @@
 
             let dynamicStats = calculateSPCStats(chartData, lineObj.USL, lineObj.LSL);
 
+            // Red Box bounds logic using Shift Start and Shift End
             let boxStartIndex = -1, boxEndIndex = -1;
             for(let i=0; i<chartTimeMap.length; i++) {
                 if (chartTimeMap[i] >= highlightStart && chartTimeMap[i] <= highlightEnd) {
