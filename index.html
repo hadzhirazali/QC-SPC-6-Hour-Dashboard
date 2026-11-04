@@ -117,15 +117,16 @@
             <span class="label-bold" style="color: #e65100;">🔴 Focus Timeframe (Displays Red Box + 24hrs Before):</span>
             
             <label class="label-bold" style="margin-left: 10px;">Red Box Start:</label>
-            <input type="datetime-local" id="highlightStart" class="date-input" onchange="saveTimeframeAndRender()">
+            <input type="datetime-local" id="highlightStart" class="date-input" onchange="renderCharts()">
             
             <label class="label-bold" style="margin-left: 10px;">Red Box End (Graph Cutoff):</label>
-            <input type="datetime-local" id="highlightEnd" class="date-input" onchange="saveTimeframeAndRender()">
+            <input type="datetime-local" id="highlightEnd" class="date-input" onchange="renderCharts()">
             
-            <!-- NEW: Previous and Next Shift Buttons grouped on the right -->
+            <!-- NEW: Added "Jump to Latest" button to auto-snap to the newest data if you get lost -->
             <div style="margin-left: auto; display: flex; gap: 10px;">
-                <button id="prevShiftBtn" class="btn" style="background-color: #f3e5f5; border-color: #ce93d8; color: #6a1b9a;">⏮️ Prev 6h Shift</button>
-                <button id="nextShiftBtn" class="btn" style="background-color: #e3f2fd; border-color: #90caf9; color: #1565c0;">⏭️ Next 6h Shift</button>
+                <button id="jumpLatestBtn" class="btn" style="background-color: #e8f5e9; border-color: #81c784; color: #2e7d32;">🔄 Jump to Latest</button>
+                <button id="prevShiftBtn" class="btn" style="background-color: #f3e5f5; border-color: #ce93d8; color: #6a1b9a;">⏮️ Prev 6h</button>
+                <button id="nextShiftBtn" class="btn" style="background-color: #e3f2fd; border-color: #90caf9; color: #1565c0;">⏭️ Next 6h</button>
             </div>
         </div>
     </header>
@@ -265,65 +266,49 @@
         return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     }
 
-    function initializeTimeframe(maxTimeObj) {
-        let savedStart = localStorage.getItem('mesSavedShiftStart');
-        let savedEnd = localStorage.getItem('mesSavedShiftEnd');
+    // FIXED: Analyzes the absolute latest data in the database and aggressively forces the UI to center on it!
+    function snapToLatest() {
+        let maxTime = 0;
+        for (let line in globalData) {
+            globalData[line].forEach(row => {
+                let t = row.time.getTime();
+                if (t > maxTime) maxTime = t;
+            });
+        }
+        
+        let targetTime = maxTime > 0 ? new Date(maxTime) : new Date();
+        let h = targetTime.getHours();
+        
+        let shiftStart = new Date(targetTime);
+        let shiftEnd = new Date(targetTime);
+        shiftStart.setMinutes(0, 0, 0);
+        shiftEnd.setMinutes(0, 0, 0);
 
-        if (savedStart && savedEnd) {
-            document.getElementById('highlightStart').value = savedStart;
-            document.getElementById('highlightEnd').value = savedEnd;
-        } else {
-            if (!maxTimeObj) maxTimeObj = new Date();
-            
-            let targetTime = new Date(maxTimeObj);
-            let h = targetTime.getHours();
-            
-            let shiftStart = new Date(targetTime);
-            let shiftEnd = new Date(targetTime);
-
-            shiftStart.setMinutes(0, 0, 0);
-            shiftEnd.setMinutes(0, 0, 0);
-
-            if (h >= 4 && h < 10) {
-                shiftStart.setHours(4); shiftEnd.setHours(10);
-            } else if (h >= 10 && h < 16) {
-                shiftStart.setHours(10); shiftEnd.setHours(16);
-            } else if (h >= 16 && h < 22) {
-                shiftStart.setHours(16); shiftEnd.setHours(22);
-            } else { 
-                if (h >= 22) {
-                    shiftStart.setHours(22); shiftEnd.setDate(shiftEnd.getDate() + 1); shiftEnd.setHours(4);
-                } else {
-                    shiftStart.setDate(shiftStart.getDate() - 1); shiftStart.setHours(22); shiftEnd.setHours(4);
-                }
+        if (h >= 4 && h < 10) {
+            shiftStart.setHours(4); shiftEnd.setHours(10);
+        } else if (h >= 10 && h < 16) {
+            shiftStart.setHours(10); shiftEnd.setHours(16);
+        } else if (h >= 16 && h < 22) {
+            shiftStart.setHours(16); shiftEnd.setHours(22);
+        } else { 
+            if (h >= 22) {
+                shiftStart.setHours(22); shiftEnd.setDate(shiftEnd.getDate() + 1); shiftEnd.setHours(4);
+            } else {
+                shiftStart.setDate(shiftStart.getDate() - 1); shiftStart.setHours(22); shiftEnd.setHours(4);
             }
-
-            let newStart = formatForInput(shiftStart);
-            let newEnd = formatForInput(shiftEnd);
-            
-            document.getElementById('highlightStart').value = newStart;
-            document.getElementById('highlightEnd').value = newEnd;
-            
-            localStorage.setItem('mesSavedShiftStart', newStart);
-            localStorage.setItem('mesSavedShiftEnd', newEnd);
         }
-    }
-
-    function saveTimeframeAndRender() {
-        const startVal = document.getElementById('highlightStart').value;
-        const endVal = document.getElementById('highlightEnd').value;
-        if (startVal && endVal) {
-            localStorage.setItem('mesSavedShiftStart', startVal);
-            localStorage.setItem('mesSavedShiftEnd', endVal);
-        }
+        
+        document.getElementById('highlightStart').value = formatForInput(shiftStart);
+        document.getElementById('highlightEnd').value = formatForInput(shiftEnd);
         renderCharts();
     }
 
-    // NEW: Previous Shift Button Logic
+    // Controls
+    document.getElementById('jumpLatestBtn').addEventListener('click', snapToLatest);
+
     document.getElementById('prevShiftBtn').addEventListener('click', function() {
         let startInput = document.getElementById('highlightStart').value;
         let endInput = document.getElementById('highlightEnd').value;
-        
         if (!startInput || !endInput) return;
 
         let startDate = new Date(startInput);
@@ -334,15 +319,12 @@
 
         document.getElementById('highlightStart').value = formatForInput(startDate);
         document.getElementById('highlightEnd').value = formatForInput(endDate);
-        
-        saveTimeframeAndRender();
+        renderCharts();
     });
 
-    // Next Shift Button Logic
     document.getElementById('nextShiftBtn').addEventListener('click', function() {
         let startInput = document.getElementById('highlightStart').value;
         let endInput = document.getElementById('highlightEnd').value;
-        
         if (!startInput || !endInput) return;
 
         let startDate = new Date(startInput);
@@ -353,8 +335,7 @@
 
         document.getElementById('highlightStart').value = formatForInput(startDate);
         document.getElementById('highlightEnd').value = formatForInput(endDate);
-        
-        saveTimeframeAndRender();
+        renderCharts();
     });
 
     // --- FIREBASE REAL-TIME SYNC LISTENER ---
@@ -366,33 +347,26 @@
             
             if (savedData) {
                 ['W1', 'W2', 'W3', 'W4', 'W5', 'W6'].forEach(line => {
-                    globalData[line] = savedData[line] || [];
+                    // CRITICAL FIREBASE BUG FIX: Converts Objects back into Arrays to prevent the graph crash
+                    let ld = savedData[line] || [];
+                    if (!Array.isArray(ld)) {
+                        ld = Object.values(ld); 
+                    }
+                    
+                    globalData[line] = ld;
                     globalData[line].forEach(item => {
-                        item.time = new Date(item.time);
+                        if (item && item.time) item.time = new Date(item.time);
                     });
                 });
                 
                 statusEl.textContent = "✅ Status: Live cloud data synced. Watching for real-time updates...";
                 statusEl.className = "status success";
                 
-                let latest = null;
-                let maxTime = 0;
-                for (let line in globalData) {
-                    globalData[line].forEach(row => {
-                        let t = row.time.getTime();
-                        if (t > maxTime) maxTime = t;
-                    });
-                }
-                if(maxTime > 0) latest = new Date(maxTime);
-                
-                initializeTimeframe(latest);
-                renderCharts(); 
+                // Immediately force the view to the latest data timeframe!
+                snapToLatest();
             } else {
                 globalData = { W1: [], W2: [], W3: [], W4: [], W5: [], W6: [] };
-                
-                initializeTimeframe(new Date()); 
-                
-                renderCharts(); 
+                snapToLatest();
                 statusEl.textContent = "Status: Cloud Database is completely empty. Waiting for Data Upload...";
                 statusEl.className = "status";
             }
@@ -443,15 +417,27 @@
 
             if (!line || !timeStr || !barcode) return;
 
+            // FIXED: Added an aggressive date format fallback parser just in case the timestamp gets weird
             let dateObj;
             if (typeof timeStr === 'number') {
                 let utcMs = Math.round((timeStr - 25569) * 86400 * 1000);
                 let offsetMs = new Date().getTimezoneOffset() * 60000; 
                 dateObj = new Date(utcMs + offsetMs);
             } else {
-                dateObj = new Date(String(timeStr).replace(/-/g, '/'));
+                let ts = String(timeStr).trim();
+                dateObj = new Date(ts.replace(/-/g, '/'));
+                if (isNaN(dateObj.getTime())) {
+                    let parts = ts.split(/[\s/:-]+/);
+                    if(parts.length >= 3) {
+                        if(parts[0].length === 4) {
+                            dateObj = new Date(parts[0], parts[1]-1, parts[2], parts[3]||0, parts[4]||0, parts[5]||0);
+                        } else if (parts[2].length === 4) {
+                            dateObj = new Date(parts[2], parts[1]-1, parts[0], parts[3]||0, parts[4]||0, parts[5]||0);
+                        }
+                    }
+                }
             }
-            if (isNaN(dateObj.getTime())) return;
+            if (!dateObj || isNaN(dateObj.getTime())) return;
             
             let airVal = extractMeasurement(row, ['透气', 'sf005', 'air', 'average air', 'permeability', 'porosity']);
             let thickVal = extractMeasurement(row, ['厚度', 'sf002', 'thick', 'thickness', 'average thickness']);
@@ -575,6 +561,7 @@
         let highlightStart = new Date(highlightStartStr);
         let highlightEnd = new Date(highlightEndStr);
         
+        // Auto-Corrects the Date Boxes
         if (highlightStart > highlightEnd) {
             let temp = highlightStart;
             highlightStart = highlightEnd;
@@ -585,8 +572,6 @@
             
             document.getElementById('highlightStart').value = fixedStart;
             document.getElementById('highlightEnd').value = fixedEnd;
-            localStorage.setItem('mesSavedShiftStart', fixedStart);
-            localStorage.setItem('mesSavedShiftEnd', fixedEnd);
         }
 
         const displayStartTime = new Date(highlightEnd.getTime() - (24 * 60 * 60 * 1000));
