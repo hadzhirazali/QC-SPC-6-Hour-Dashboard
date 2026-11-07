@@ -108,7 +108,6 @@
                 <label style="margin-left:5px; cursor:pointer;"><input type="radio" name="viewType" value="thick" onchange="renderCharts()"> Thickness</label>
             </div>
             
-            <!-- NEW: 3-Button Deletion Group -->
             <div style="display: flex; gap: 8px; align-items: center; border-left: 1px solid #ccc; padding-left: 15px;">
                 <span class="label-bold" style="color: #d32f2f;">Data Delete:</span>
                 <button id="delShiftBtn" class="btn btn-danger">⏱️ Shift Box</button>
@@ -165,27 +164,27 @@
             inspItem: "SF005|Air Permeability",
             defaultUSL: 80, defaultLSL: 30, defaultCL: 55, defaultSigma: 3,
             lines: [
-                { id: "W1", name: "W1|104", material: "200000627|W/SW509J", USL: 80, LSL: 30, CL: 57.8795, sigma: 2.0975, CPK: "N/A" },
-                { id: "W2", name: "W2|104", material: "200000627|W/SW509J", USL: 80, LSL: 30, CL: 57.4514, sigma: 2.9388, CPK: "N/A" },
-                { id: "W3", name: "W3|104", material: "200000137|W/SW810K", USL: 85, LSL: 25, CL: 53.8705, sigma: 0.9949, CPK: "N/A" },
-                { id: "W4", name: "W4|104", material: "200000627|W/SW509J", USL: 80, LSL: 30, CL: 56.1333, sigma: 3.3508, CPK: "N/A" }
+                { id: "W1", name: "W1|102", material: "200000627|W/SW509J", USL: 80, LSL: 30, CL: 57.8795, sigma: 2.0975, CPK: "N/A" },
+                { id: "W2", name: "W2|102", material: "200000627|W/SW509J", USL: 80, LSL: 30, CL: 57.4514, sigma: 2.9388, CPK: "N/A" },
+                { id: "W3", name: "W3|102", material: "200000137|W/SW810K", USL: 85, LSL: 25, CL: 53.8705, sigma: 0.9949, CPK: "N/A" },
+                { id: "W4", name: "W4|102", material: "200000627|W/SW509J", USL: 80, LSL: 30, CL: 56.1333, sigma: 3.3508, CPK: "N/A" }
             ]
         },
         thick: {
             inspItem: "SF002|Thickness",
             defaultUSL: 9.5, defaultLSL: 7.1, defaultCL: 8.3, defaultSigma: 0.15,
             lines: [
-                { id: "W1", name: "W1|104", material: "200000627|W/SW509J", USL: 9.5, LSL: 7.1, CL: 8.3827, sigma: 0.1693, CPK: "N/A" },
-                { id: "W2", name: "W2|104", material: "200000627|W/SW509J", USL: 9.5, LSL: 7.1, CL: 8.3130, sigma: 0.1351, CPK: "N/A" },
-                { id: "W3", name: "W3|104", material: "200000137|W/SW810K", USL: 11.1, LSL: 8.9, CL: 9.8748, sigma: 0.1209, CPK: "N/A" },
-                { id: "W4", name: "W4|104", material: "200000627|W/SW509J", USL: 9.5, LSL: 7.1, CL: 8.3671, sigma: 0.1068, CPK: "N/A" }
+                { id: "W1", name: "W1|102", material: "200000627|W/SW509J", USL: 9.5, LSL: 7.1, CL: 8.3827, sigma: 0.1693, CPK: "N/A" },
+                { id: "W2", name: "W2|102", material: "200000627|W/SW509J", USL: 9.5, LSL: 7.1, CL: 8.3130, sigma: 0.1351, CPK: "N/A" },
+                { id: "W3", name: "W3|102", material: "200000137|W/SW810K", USL: 11.1, LSL: 8.9, CL: 9.8748, sigma: 0.1209, CPK: "N/A" },
+                { id: "W4", name: "W4|102", material: "200000627|W/SW509J", USL: 9.5, LSL: 7.1, CL: 8.3671, sigma: 0.1068, CPK: "N/A" }
             ]
         }
     };
 
     function getLineConfig(line, typeKey) {
         let lineObj = spcConfigs[typeKey].lines.find(l => l.id === line);
-        return lineObj || { id: line, name: `${line}|104`, material: "200000627|W/SW509J", USL: spcConfigs[typeKey].defaultUSL, LSL: spcConfigs[typeKey].defaultLSL, CL: spcConfigs[typeKey].defaultCL, sigma: spcConfigs[typeKey].defaultSigma, CPK: "N/A" };
+        return lineObj || { id: line, name: `${line}|102`, material: "200000627|W/SW509J", USL: spcConfigs[typeKey].defaultUSL, LSL: spcConfigs[typeKey].defaultLSL, CL: spcConfigs[typeKey].defaultCL, sigma: spcConfigs[typeKey].defaultSigma, CPK: "N/A" };
     }
 
     function findValueByKeywords(row, keywords) {
@@ -274,8 +273,10 @@
                 if (row.time > maxTime) maxTime = row.time;
             });
         }
+        
         let targetTime = maxTime > 0 ? new Date(maxTime) : new Date();
         let h = targetTime.getHours();
+        
         let shiftStart = new Date(targetTime);
         let shiftEnd = new Date(targetTime);
         shiftStart.setMinutes(0, 0, 0);
@@ -300,17 +301,19 @@
         renderCharts();
     }
 
-    // --- TIME NAVIGATION BUTTONS ---
+    // --- BUTTON CONTROLS ---
     document.getElementById('jumpLatestBtn').addEventListener('click', snapToLatest);
 
     document.getElementById('prevShiftBtn').addEventListener('click', function() {
         let startInput = document.getElementById('highlightStart').value;
         let endInput = document.getElementById('highlightEnd').value;
         if (!startInput || !endInput) return;
+
         let startDate = new Date(startInput);
         let endDate = new Date(endInput);
         startDate.setHours(startDate.getHours() - 6);
         endDate.setHours(endDate.getHours() - 6);
+
         document.getElementById('highlightStart').value = formatForInput(startDate);
         document.getElementById('highlightEnd').value = formatForInput(endDate);
         renderCharts();
@@ -320,16 +323,17 @@
         let startInput = document.getElementById('highlightStart').value;
         let endInput = document.getElementById('highlightEnd').value;
         if (!startInput || !endInput) return;
+
         let startDate = new Date(startInput);
         let endDate = new Date(endInput);
         startDate.setHours(startDate.getHours() + 6);
         endDate.setHours(endDate.getHours() + 6);
+
         document.getElementById('highlightStart').value = formatForInput(startDate);
         document.getElementById('highlightEnd').value = formatForInput(endDate);
         renderCharts();
     });
 
-    // --- TEXT COPY BUTTON ---
     document.getElementById('copyTextBtn').addEventListener('click', async function() {
         const btn = this;
         const orig = btn.innerHTML;
@@ -356,7 +360,6 @@
         return false;
     }
 
-    // 1. Delete Shift Box
     document.getElementById('delShiftBtn').addEventListener('click', function() {
         let startInput = document.getElementById('highlightStart').value;
         let endInput = document.getElementById('highlightEnd').value;
@@ -380,7 +383,6 @@
         }
     });
 
-    // 2. Delete Month
     document.getElementById('delMonthBtn').addEventListener('click', function() {
         let targetMonth = prompt("Enter the precise month to delete (Format YYYY-MM, e.g., 2026-11):");
         if (!targetMonth) return;
@@ -404,7 +406,6 @@
         }
     });
 
-    // 3. Clear All
     document.getElementById('delAllBtn').addEventListener('click', function() {
         if (checkAdminAuth()) {
             if(confirm("FINAL WARNING: Are you absolutely sure you want to WIPE THE ENTIRE DATABASE for all time?")) {
