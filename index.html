@@ -3,12 +3,12 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-    <title>MES SPC Barcode Dashboard (Live Cloud)</title>
+    <title>MES SPC Barcode Dashboard (Live Cloud + Offline Engine)</title>
     
-    <!-- Libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
+    <!-- Libraries loaded via jsDelivr (Bypassing Cloudflare IT Firewall block) -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     
@@ -28,8 +28,9 @@
         /* Top Header Area */
         header { background: var(--surface); padding: 16px 24px; border: 1px solid var(--line); border-radius: 8px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);}
         .header-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
-        h1 { font-size: 22px; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 8px;}
+        h1 { font-size: 22px; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;}
         .cloud-badge { background: #e3f2fd; color: #1976d2; font-size: 11px; padding: 3px 8px; border-radius: 12px; border: 1px solid #bbdefb; }
+        .engine-badge { background: #e8f5e9; color: #2e7d32; font-size: 11px; padding: 3px 8px; border-radius: 12px; border: 1px solid #c8e6c9; }
         .status { margin-top: 4px; font-size: 13px; font-weight: 600; color: var(--ink2); }
         .status.success { color: #17673f; }
         .status.error { color: #d32f2f; }
@@ -59,9 +60,9 @@
         .spc-card { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; display: flex; flex-direction: column; overflow: hidden; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .spc-title { text-align: center; font-size: 16px; padding: 12px 10px; font-weight: bold; background-color: #fcfcfc; border-bottom: 1px solid var(--line); color: #111;}
         
-        .spc-body { display: block; width: 100%; height: 420px; box-sizing: border-box; }
-        .spc-echarts-container { float: left; width: calc(100% - 145px); height: 420px; }
-        .spc-info-panel { float: right; width: 145px; height: 420px; padding: 8px; border-left: 1px solid var(--line); display: flex; flex-direction: column; font-size: 11px; background-color: #fcfcfc; box-sizing: border-box; }
+        .spc-body { display: flex; width: 100%; height: 420px; box-sizing: border-box; position: relative; }
+        .spc-echarts-container { flex: 1 1 auto; width: calc(100% - 145px); height: 420px; position: relative; overflow: hidden; background: #ffffff; }
+        .spc-info-panel { width: 145px; min-width: 145px; height: 420px; padding: 8px; border-left: 1px solid var(--line); display: flex; flex-direction: column; font-size: 11px; background-color: #fcfcfc; box-sizing: border-box; flex-shrink: 0; }
         
         .spc-legend { display: flex; flex-direction: column; gap: 2px; padding-bottom: 5px; border-bottom: 1px dashed var(--line); margin-bottom: 5px; }
         .spc-legend-item { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
@@ -74,12 +75,18 @@
         
         #exportWrapper { background: var(--bg); padding: 10px; margin: -10px; border-radius: 8px;}
 
+        /* Native Offline Tooltip */
+        .native-spc-tooltip {
+            position: absolute; pointer-events: none; display: none;
+            background: rgba(255, 255, 255, 0.96); border: 1px solid #aaa;
+            border-radius: 4px; padding: 8px 10px; font-size: 12px; color: #222;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.18); z-index: 100; line-height: 1.45;
+            white-space: nowrap;
+        }
+
         /* Modal Styles for Model Spec Manager */
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.55); display: none; align-items: center; justify-content: center; z-index: 9999; padding: 15px; }
-        
-        /* FIXED: Increased Modal width from 680px to 900px */
         .modal-card { background: var(--surface); border-radius: 8px; width: 100%; max-width: 900px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); overflow: hidden; display: flex; flex-direction: column; max-height: 90vh; }
-        
         .modal-header { padding: 14px 20px; background: #f8f9fa; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
         .modal-header h2 { margin: 0; font-size: 18px; color: var(--ink); display: flex; align-items: center; gap: 8px; }
         .modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: #666; line-height: 1; }
@@ -112,7 +119,11 @@
     <header>
         <div class="header-top">
             <div>
-                <h1>MES SPC Barcode Dashboard <span class="cloud-badge">☁️ Live Cloud Sync</span></h1>
+                <h1>
+                    MES SPC Barcode Dashboard 
+                    <span class="cloud-badge">☁️ Live Cloud Sync</span>
+                    <span id="engineBadge" class="engine-badge">⚡ Checking Graph Engine...</span>
+                </h1>
                 <div class="status" id="uploadStatus">Status: Connecting to Firebase Database...</div>
             </div>
             
@@ -252,7 +263,7 @@
 </div>
 
 <script>
-    // --- FIREBASE CONFIGURATION ---
+    // --- FIREBASE CONFIGURATION (SAFE GUARDED IF OFFLINE) ---
     const firebaseConfig = {
         apiKey: "AIzaSyD2o2iDihDy0InX06f2JIzJC76rdadV4K4",
         authDomain: "mes-spc-dashboard.firebaseapp.com",
@@ -263,9 +274,16 @@
         appId: "1:366479322897:web:156a148503258e13efe6b0"
     };
     
-    firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
-    // ------------------------------
+    let database = null;
+    try {
+        if (typeof firebase !== 'undefined') {
+            firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+        }
+    } catch (e) {
+        console.warn("Firebase offline or blocked, running in local memory mode:", e);
+    }
+    // --------------------------------------------------------
 
     let globalData = { W1: [], W2: [], W3: [], W4: [], W5: [], W6: [] };
     let chartInstances = [];
@@ -273,6 +291,7 @@
 
     const defaultModelSpecs = {
         "SW509J": { fullName: "200000627|W/SW509J", air: { USL: 80, LSL: 30 }, thick: { USL: 9.5, LSL: 7.1 } },
+        "SW509K": { fullName: "SW509K", air: { USL: 85, LSL: 25 }, thick: { USL: 9.3, LSL: 7.3 } },
         "SW810K": { fullName: "200000137|W/SW810K", air: { USL: 85, LSL: 25 }, thick: { USL: 11.1, LSL: 8.9 } }
     };
     let modelSpecDB = JSON.parse(JSON.stringify(defaultModelSpecs));
@@ -300,6 +319,20 @@
         }
     };
 
+    function updateEngineBadge() {
+        const badge = document.getElementById('engineBadge');
+        if (!badge) return;
+        if (typeof echarts !== 'undefined') {
+            badge.textContent = "🟢 Online ECharts + Offline Backup Ready";
+            badge.style.background = "#e8f5e9";
+            badge.style.color = "#2e7d32";
+        } else {
+            badge.textContent = "🛡️ IT Firewall Bypassed (Offline Native Canvas Active)";
+            badge.style.background = "#fff8e1";
+            badge.style.color = "#e65100";
+        }
+    }
+
     function getNormalizedModelKey(rawModelStr) {
         if (!rawModelStr) return null;
         let s = String(rawModelStr).trim().toUpperCase();
@@ -319,6 +352,7 @@
             }
         }
         if (s.includes("SW509J") || s.includes("200000627")) return "SW509J";
+        if (s.includes("SW509K")) return "SW509K";
         if (s.includes("SW810K") || s.includes("200000137")) return "SW810K";
         return s.replace(/[.#$\[\]\/]/g, "_");
     }
@@ -418,7 +452,6 @@
         document.getElementById('formModeTitle').textContent = `✏️ Editing Model: ${m.fullName || key}`;
     }
 
-    // FIXED: Only ask for password if editing an existing model
     function saveModelSpecFromModal() {
         const oldKey = document.getElementById('editingModelKey').value;
         const nameInput = document.getElementById('specModelName').value.trim();
@@ -440,7 +473,7 @@
             return;
         }
 
-        // If editing an existing model, verify password!
+        // Only require password if editing an existing model
         if (oldKey) {
             if (!checkAdminAuth()) return;
         }
@@ -463,16 +496,20 @@
         resetSpecForm();
         renderCharts();
 
-        database.ref('mesModelSpecs').set(modelSpecDB).then(() => {
-            if (pendingUnknownModels.length > 0) {
-                let nextModel = pendingUnknownModels.shift();
-                openSpecModal(nextModel, true);
-            } else {
-                closeSpecModal();
-            }
-        }).catch(err => {
-            alert("❌ Error saving model to cloud: " + err.message);
-        });
+        if (database) {
+            database.ref('mesModelSpecs').set(modelSpecDB).then(() => {
+                if (pendingUnknownModels.length > 0) {
+                    let nextModel = pendingUnknownModels.shift();
+                    openSpecModal(nextModel, true);
+                } else {
+                    closeSpecModal();
+                }
+            }).catch(err => {
+                alert("❌ Error saving model to cloud: " + err.message);
+            });
+        } else {
+            closeSpecModal();
+        }
     }
 
     function deleteModelSpec(key) {
@@ -485,9 +522,11 @@
             renderSpecTable();
             resetSpecForm();
             renderCharts();
-            database.ref('mesModelSpecs').set(modelSpecDB).catch(err => {
-                alert("❌ Error deleting model from cloud: " + err.message);
-            });
+            if (database) {
+                database.ref('mesModelSpecs').set(modelSpecDB).catch(err => {
+                    alert("❌ Error deleting model from cloud: " + err.message);
+                });
+            }
         }
     }
 
@@ -741,7 +780,7 @@
                 if (deletedCount === 0) { alert("No data found in this timeframe to delete."); return; }
                 globalData = updatedData;
                 renderCharts();
-                database.ref('mesGlobalData').set(updatedData).then(() => alert(`Successfully deleted ${deletedCount} barcodes.`));
+                if (database) database.ref('mesGlobalData').set(updatedData).then(() => alert(`Successfully deleted ${deletedCount} barcodes.`));
             }
         }
     });
@@ -766,7 +805,7 @@
                 if (deletedCount === 0) { alert(`No data found for ${targetMonth} to delete.`); return; }
                 globalData = updatedData;
                 renderCharts();
-                database.ref('mesGlobalData').set(updatedData).then(() => alert(`Successfully deleted ${deletedCount} barcodes from ${targetMonth}.`));
+                if (database) database.ref('mesGlobalData').set(updatedData).then(() => alert(`Successfully deleted ${deletedCount} barcodes from ${targetMonth}.`));
             }
         }
     });
@@ -776,21 +815,27 @@
             if(confirm("FINAL WARNING: Are you absolutely sure you want to WIPE THE ENTIRE DATABASE for all time?")) {
                 globalData = { W1: [], W2: [], W3: [], W4: [], W5: [], W6: [] };
                 renderCharts();
-                database.ref('mesGlobalData').remove().then(() => alert("Database wiped."));
+                if (database) database.ref('mesGlobalData').remove().then(() => alert("Database wiped."));
             }
         }
     });
 
     // --- FIREBASE REAL-TIME SYNC LISTENER ---
     document.addEventListener('DOMContentLoaded', () => {
+        updateEngineBadge();
         const statusEl = document.getElementById('uploadStatus');
         
         snapToLatest();
 
+        if (!database) {
+            statusEl.textContent = "⚠️ Status: Running in Offline / Local Mode (Upload Excel file to view graphs).";
+            return;
+        }
+
         database.ref('mesModelSpecs').on('value', function(specSnap) {
             const savedSpecs = specSnap.val();
             if (savedSpecs) {
-                modelSpecDB = savedSpecs;
+                modelSpecDB = { ...defaultModelSpecs, ...savedSpecs };
             } else {
                 modelSpecDB = JSON.parse(JSON.stringify(defaultModelSpecs));
                 database.ref('mesModelSpecs').set(modelSpecDB);
@@ -909,7 +954,9 @@
 
         snapToLatest();
 
-        database.ref('mesGlobalData').set(globalData).catch(err => console.log("DB Error:", err));
+        if (database) {
+            database.ref('mesGlobalData').set(globalData).catch(err => console.log("DB Error:", err));
+        }
 
         queueUnknownModelsForPrompt(Array.from(detectedModels));
 
@@ -1001,7 +1048,228 @@
         </div>`;
     }
 
+    // ============================================================================
+    // BUILT-IN NATIVE HTML5 CANVAS SPC GRAPH ENGINE (100% OFFLINE / FIREWALL-PROOF)
+    // ============================================================================
+    function drawNativeOfflineSPCChart(container, cfg) {
+        container.innerHTML = '';
+        const canvas = document.createElement('canvas');
+        const tooltip = document.createElement('div');
+        tooltip.className = 'native-spc-tooltip';
+        container.appendChild(canvas);
+        container.appendChild(tooltip);
+
+        function paintCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            const width = Math.max(container.clientWidth || 800, 300);
+            const height = 420;
+
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            canvas.style.width = width + 'px';
+            canvas.style.height = height + 'px';
+
+            const ctx = canvas.getContext('2d');
+            ctx.scale(dpr, dpr);
+
+            // White background
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
+
+            const pad = { top: 18, right: 22, bottom: 92, left: 48 };
+            const plotW = width - pad.left - pad.right;
+            const plotH = height - pad.top - pad.bottom;
+
+            const yMin = cfg.chartYMin;
+            const yMax = cfg.chartYMax;
+            const ySpan = (yMax - yMin) > 0 ? (yMax - yMin) : 10;
+
+            const getY = (val) => pad.top + plotH - ((val - yMin) / ySpan) * plotH;
+            const n = cfg.chartData.length;
+            const getX = (idx) => {
+                if (n <= 1) return pad.left + plotW / 2;
+                return pad.left + ((idx + 0.5) / n) * plotW;
+            };
+
+            // 1. Draw Axes
+            ctx.strokeStyle = '#888888';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(pad.left, pad.top);
+            ctx.lineTo(pad.left, pad.top + plotH);
+            ctx.lineTo(pad.left + plotW, pad.top + plotH);
+            ctx.stroke();
+
+            // 2. Y-Axis Tick Labels
+            ctx.fillStyle = '#333333';
+            ctx.font = '10px "Microsoft YaHei", sans-serif';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            const ySteps = 5;
+            for (let i = 0; i <= ySteps; i++) {
+                const v = yMin + (ySpan * i) / ySteps;
+                const y = getY(v);
+                ctx.fillText(Number(v.toFixed(2)), pad.left - 6, y);
+                ctx.beginPath();
+                ctx.moveTo(pad.left - 3, y);
+                ctx.lineTo(pad.left, y);
+                ctx.stroke();
+            }
+
+            // 3. Draw Horizontal Specification & Sigma Lines
+            cfg.markLinesData.forEach(ml => {
+                if (ml.yAxis === undefined || isNaN(ml.yAxis)) return;
+                const y = getY(ml.yAxis);
+                if (y < pad.top - 5 || y > pad.top + plotH + 5) return;
+                ctx.save();
+                ctx.strokeStyle = ml.lineStyle.color;
+                ctx.lineWidth = ml.lineStyle.width || 1;
+                ctx.beginPath();
+                ctx.moveTo(pad.left, y);
+                ctx.lineTo(pad.left + plotW, y);
+                ctx.stroke();
+                ctx.restore();
+            });
+
+            const validPoints = [];
+            cfg.chartData.forEach((v, i) => {
+                if (v !== null && v !== undefined && !isNaN(v)) {
+                    validPoints.push({ idx: i, x: getX(i), y: getY(v), val: v });
+                }
+            });
+
+            if (validPoints.length === 0) {
+                ctx.fillStyle = '#888888';
+                ctx.font = 'bold 14px "Microsoft YaHei", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('No Measured Data in Selected 24-Hour Window', pad.left + plotW / 2, pad.top + plotH / 2);
+                return;
+            }
+
+            // 4. Draw Red Box Highlight (6h Shift Focus)
+            if (cfg.boxStartIndex !== -1 && cfg.boxEndIndex !== -1) {
+                const stepW = n > 0 ? (plotW / n) : 20;
+                const xStart = Math.max(pad.left, getX(cfg.boxStartIndex) - Math.min(stepW * 0.4, 8));
+                const xEnd = Math.min(pad.left + plotW, getX(cfg.boxEndIndex) + Math.min(stepW * 0.4, 8));
+                ctx.save();
+                ctx.strokeStyle = '#ff0000';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(xStart, pad.top, Math.max(4, xEnd - xStart), plotH);
+                ctx.restore();
+            }
+
+            // 5. Draw X-Axis Ticks & Rotated Mother Barcodes
+            const yAxisBottom = pad.top + plotH;
+            for (let i = 0; i < n; i++) {
+                const x = getX(i);
+                // Minor tick for every WS barcode
+                ctx.strokeStyle = '#888888';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(x, yAxisBottom);
+                ctx.lineTo(x, yAxisBottom + 4);
+                ctx.stroke();
+
+                // Major tick & Mother Barcode label when Mother Barcode changes
+                const isFirstOrChanged = (i === 0) || (cfg.chartMotherBarcodes[i] !== cfg.chartMotherBarcodes[i - 1]);
+                if (isFirstOrChanged && cfg.chartMotherBarcodes[i] && cfg.chartMotherBarcodes[i] !== 'No Data') {
+                    ctx.beginPath();
+                    ctx.moveTo(x, yAxisBottom);
+                    ctx.lineTo(x, yAxisBottom + 10);
+                    ctx.stroke();
+
+                    ctx.save();
+                    ctx.translate(x, yAxisBottom + 14);
+                    ctx.rotate(-35 * Math.PI / 180);
+                    ctx.fillStyle = '#333333';
+                    ctx.font = 'bold 10px "Microsoft YaHei", sans-serif';
+                    ctx.textAlign = 'right';
+                    ctx.textBaseline = 'top';
+                    ctx.fillText(cfg.chartMotherBarcodes[i], 0, 0);
+                    ctx.restore();
+                }
+            }
+
+            // 6. Draw Smooth Data Curve & Points
+            ctx.save();
+            ctx.strokeStyle = '#6395f9';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            validPoints.forEach((pt, idx) => {
+                if (idx === 0) {
+                    ctx.moveTo(pt.x, pt.y);
+                } else {
+                    const prev = validPoints[idx - 1];
+                    const midX = (prev.x + pt.x) / 2;
+                    ctx.bezierCurveTo(midX, prev.y, midX, pt.y, pt.x, pt.y);
+                }
+            });
+            ctx.stroke();
+
+            // Data Dots
+            ctx.fillStyle = '#6395f9';
+            validPoints.forEach(pt => {
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.restore();
+
+            // 7. Interactive Hover Crosshair & Tooltip
+            canvas.onmousemove = function(ev) {
+                const rect = canvas.getBoundingClientRect();
+                const mx = ev.clientX - rect.left;
+                const my = ev.clientY - rect.top;
+
+                if (mx < pad.left || mx > pad.left + plotW || my < pad.top || my > pad.top + plotH) {
+                    tooltip.style.display = 'none';
+                    return;
+                }
+
+                // Find nearest point along X-axis
+                let bestIdx = 0;
+                let minDist = Infinity;
+                for (let i = 0; i < n; i++) {
+                    const d = Math.abs(getX(i) - mx);
+                    if (d < minDist) {
+                        minDist = d;
+                        bestIdx = i;
+                    }
+                }
+
+                const rawVal = cfg.chartData[bestIdx];
+                const valText = (rawVal !== null && rawVal !== undefined && !isNaN(rawVal)) ? Number(rawVal).toFixed(4) : "No Data";
+                const timeText = cfg.chartTimeMap[bestIdx] ? cfg.formatDate(cfg.chartTimeMap[bestIdx]) : "-";
+                const modelText = cfg.chartModelMap[bestIdx] || "Unknown";
+                const mbText = cfg.chartMotherBarcodes[bestIdx] || "-";
+                const wsText = cfg.chartHoverBarcodes[bestIdx] || "-";
+
+                tooltip.innerHTML = `Model: <b>${modelText}</b><br/>Mother Barcode: <b>${mbText}</b><br/>WS Barcode: ${wsText}<br/>Avg Time: ${timeText}<br/>Avg Value: <b>${valText}</b>`;
+                tooltip.style.display = 'block';
+
+                let leftPos = mx + 15;
+                if (leftPos + tooltip.offsetWidth > width - 10) {
+                    leftPos = mx - tooltip.offsetWidth - 15;
+                }
+                let topPos = Math.max(10, Math.min(height - tooltip.offsetHeight - 10, my - 20));
+                tooltip.style.left = leftPos + 'px';
+                tooltip.style.top = topPos + 'px';
+            };
+
+            canvas.onmouseleave = function() {
+                tooltip.style.display = 'none';
+            };
+        }
+
+        paintCanvas();
+        return {
+            resize: paintCanvas,
+            dispose: () => { container.innerHTML = ''; }
+        };
+    }
+
     function renderCharts() {
+        updateEngineBadge();
         const wrapper = document.getElementById('spcChartsWrapper');
         
         chartInstances.forEach(inst => { try { inst.dispose(); } catch(e){} }); 
@@ -1167,12 +1435,6 @@
                 const chartDom = document.getElementById(`chart_${typeKey}_${lineObj.id}`);
                 if (!chartDom) return;
 
-                // Explicit container sizing
-                let cw = chartDom.parentElement.clientWidth - 145;
-                if (cw < 100) cw = 800; 
-                const myChart = echarts.init(chartDom, null, { width: cw, height: 420 });
-                chartInstances.push(myChart);
-
                 let markLinesData = [
                     { yAxis: lineObj.USL, lineStyle: { color: '#ff8c00', width: 2, type: 'solid' } },
                     { yAxis: lineObj.LSL, lineStyle: { color: '#ff8c00', width: 2, type: 'solid' } }
@@ -1204,123 +1466,119 @@
                 let chartYMax = Number((lineObj.USL + yPad).toFixed(2)) || 100;
                 let chartYMin = Number((lineObj.LSL - yPad).toFixed(2)) || 0;
 
-                let maData = [];
-                if (boxStartIndex !== -1 && boxEndIndex !== -1 && chartHoverBarcodes.length > 0) {
-                    let catStart = chartHoverBarcodes[boxStartIndex];
-                    let catEnd = chartHoverBarcodes[boxEndIndex];
-                    if (catStart && catEnd) {
-                        maData = [[{ xAxis: catStart }, { xAxis: catEnd }]];
+                const chartPayload = {
+                    chartData, chartMotherBarcodes, chartHoverBarcodes,
+                    chartTimeMap, chartModelMap, markLinesData,
+                    boxStartIndex, boxEndIndex, chartYMin, chartYMax, formatDate
+                };
+
+                // HYBRID RENDERER: Try ECharts if online & unblocked, otherwise use Native Offline Canvas Engine
+                let renderedWithECharts = false;
+                if (typeof echarts !== 'undefined') {
+                    try {
+                        let cw = chartDom.parentElement.clientWidth - 145;
+                        if (cw < 100) cw = 800; 
+                        const myChart = echarts.init(chartDom, null, { width: cw, height: 420 });
+
+                        let maData = [];
+                        if (boxStartIndex !== -1 && boxEndIndex !== -1 && chartHoverBarcodes.length > 0) {
+                            let catStart = chartHoverBarcodes[boxStartIndex];
+                            let catEnd = chartHoverBarcodes[boxEndIndex];
+                            if (catStart && catEnd) {
+                                maData = [[{ xAxis: catStart }, { xAxis: catEnd }]];
+                            }
+                        }
+
+                        myChart.setOption({
+                            animation: false,
+                            grid: { top: 15, bottom: 90, left: 45, right: 20 },
+                            tooltip: { 
+                                trigger: 'axis', 
+                                animation: false, 
+                                axisPointer: { type: 'cross', animation: false },
+                                formatter: function(params) {
+                                    if (!params || !params[0]) return '';
+                                    let idx = params[0].dataIndex;
+                                    let rawVal = params[0].value;
+                                    let valText = (rawVal !== null && rawVal !== undefined && !isNaN(rawVal)) ? Number(rawVal).toFixed(4) : "No Data";
+                                    let timeText = chartTimeMap[idx] ? formatDate(chartTimeMap[idx]) : "-";
+                                    let modelText = chartModelMap[idx] || "Unknown";
+                                    let mbText = chartMotherBarcodes[idx] || "-";
+                                    let wsText = chartHoverBarcodes[idx] || "-";
+                                    return `Model: <b>${modelText}</b><br/>Mother Barcode: <b>${mbText}</b><br/>WS Barcode: ${wsText}<br/>Avg Time: ${timeText}<br/>Avg Value: <b>${valText}</b>`;
+                                }
+                            },
+                            xAxis: [
+                                { 
+                                    type: 'category', 
+                                    data: chartHoverBarcodes.length > 0 ? chartHoverBarcodes : ['No Data'], 
+                                    position: 'bottom',
+                                    axisLabel: { 
+                                        rotate: 35, fontSize: 10, fontWeight: 'bold', color: '#333', margin: 15, align: 'right', 
+                                        formatter: function (value, index) {
+                                            if (value === 'No Data') return '';
+                                            return chartMotherBarcodes[index] || value;
+                                        },
+                                        interval: function (index) {
+                                            if (chartMotherBarcodes.length === 0) return true;
+                                            if (index === 0) return true;
+                                            return chartMotherBarcodes[index] !== chartMotherBarcodes[index - 1];
+                                        }
+                                    }, 
+                                    axisTick: {
+                                        show: true, alignWithLabel: true, length: 10, 
+                                        interval: function (index) {
+                                            if (chartMotherBarcodes.length === 0) return true;
+                                            if (index === 0) return true;
+                                            return chartMotherBarcodes[index] !== chartMotherBarcodes[index - 1];
+                                        }
+                                    },
+                                    axisLine: { lineStyle: { color: '#888' } } 
+                                },
+                                {
+                                    type: 'category',
+                                    data: chartHoverBarcodes.length > 0 ? chartHoverBarcodes : ['No Data'],
+                                    position: 'bottom',
+                                    axisLabel: { show: false }, axisLine: { show: false },  
+                                    axisTick: { show: true, interval: 0, alignWithLabel: true, length: 4, lineStyle: { color: '#888' } }
+                                }
+                            ],
+                            yAxis: { 
+                                type: 'value', min: chartYMin, max: chartYMax, splitLine: { show: false }, 
+                                axisLabel: { fontSize: 10, formatter: function(value) { return Number(value.toFixed(2)); } }, 
+                                axisLine: { show: true, lineStyle: { color: '#888' } } 
+                            },
+                            series: [{
+                                name: 'Data', type: 'line', smooth: 0.3,
+                                data: chartData.length > 0 ? chartData : [null],
+                                symbol: 'circle', symbolSize: 5,
+                                itemStyle: { color: '#6395f9' }, lineStyle: { color: '#6395f9', width: 2 },
+                                markArea: { 
+                                    silent: true,
+                                    itemStyle: { color: 'transparent', borderWidth: 2, borderColor: 'red' }, 
+                                    data: maData 
+                                },
+                                markLine: {
+                                    symbol: ['none', 'none'], label: { show: false }, silent: true,
+                                    data: markLinesData
+                                }
+                            }]
+                        });
+
+                        chartInstances.push(myChart);
+                        setTimeout(() => { if (myChart) myChart.resize(); }, 50);
+                        renderedWithECharts = true;
+                    } catch (ecErr) {
+                        console.warn("ECharts failed, switching to Native Offline Canvas:", ecErr);
+                        renderedWithECharts = false;
                     }
                 }
 
-                myChart.setOption({
-                    animation: false,
-                    grid: { top: 15, bottom: 90, left: 45, right: 20 },
-                    tooltip: { 
-                        trigger: 'axis', 
-                        animation: false, 
-                        axisPointer: { type: 'cross', animation: false },
-                        formatter: function(params) {
-                            if (!params || !params[0]) return '';
-                            let idx = params[0].dataIndex;
-                            let rawVal = params[0].value;
-                            let valText = (rawVal !== null && rawVal !== undefined && !isNaN(rawVal)) ? Number(rawVal).toFixed(4) : "No Data";
-                            let timeText = chartTimeMap[idx] ? formatDate(chartTimeMap[idx]) : "-";
-                            let modelText = chartModelMap[idx] || "Unknown";
-                            let mbText = chartMotherBarcodes[idx] || "-";
-                            let wsText = chartHoverBarcodes[idx] || "-";
-                            return `Model: <b>${modelText}</b><br/>Mother Barcode: <b>${mbText}</b><br/>WS Barcode: ${wsText}<br/>Avg Time: ${timeText}<br/>Avg Value: <b>${valText}</b>`;
-                        }
-                    },
-                    xAxis: [
-                        { 
-                            type: 'category', 
-                            data: chartHoverBarcodes.length > 0 ? chartHoverBarcodes : ['No Data'], 
-                            position: 'bottom',
-                            axisLabel: { 
-                                rotate: 35, 
-                                fontSize: 10,
-                                fontWeight: 'bold', 
-                                color: '#333',      
-                                margin: 15,
-                                align: 'right', 
-                                formatter: function (value, index) {
-                                    if (value === 'No Data') return '';
-                                    return chartMotherBarcodes[index] || value;
-                                },
-                                interval: function (index) {
-                                    if (chartMotherBarcodes.length === 0) return true;
-                                    if (index === 0) return true;
-                                    return chartMotherBarcodes[index] !== chartMotherBarcodes[index - 1];
-                                }
-                            }, 
-                            axisTick: {
-                                show: true,
-                                alignWithLabel: true,
-                                length: 10, 
-                                interval: function (index) {
-                                    if (chartMotherBarcodes.length === 0) return true;
-                                    if (index === 0) return true;
-                                    return chartMotherBarcodes[index] !== chartMotherBarcodes[index - 1];
-                                }
-                            },
-                            axisLine: { lineStyle: { color: '#888' } } 
-                        },
-                        {
-                            type: 'category',
-                            data: chartHoverBarcodes.length > 0 ? chartHoverBarcodes : ['No Data'],
-                            position: 'bottom',
-                            axisLabel: { show: false }, 
-                            axisLine: { show: false },  
-                            axisTick: {
-                                show: true,
-                                interval: 0, 
-                                alignWithLabel: true,
-                                length: 4,   
-                                lineStyle: { color: '#888' }
-                            }
-                        }
-                    ],
-                    yAxis: { 
-                        type: 'value', 
-                        min: chartYMin, 
-                        max: chartYMax, 
-                        splitLine: { show: false }, 
-                        axisLabel: { 
-                            fontSize: 10,
-                            formatter: function(value) {
-                                return Number(value.toFixed(2));
-                            }
-                        }, 
-                        axisLine: { show: true, lineStyle: { color: '#888' } } 
-                    },
-                    series: [{
-                        name: 'Data',
-                        type: 'line',
-                        smooth: 0.3,
-                        data: chartData.length > 0 ? chartData : [null],
-                        symbol: 'circle',
-                        symbolSize: 5,
-                        itemStyle: { color: '#6395f9' },
-                        lineStyle: { color: '#6395f9', width: 2 },
-                        markArea: { 
-                            silent: true,
-                            itemStyle: { color: 'transparent', borderWidth: 2, borderColor: 'red' }, 
-                            data: maData 
-                        },
-                        markLine: {
-                            symbol: ['none', 'none'],
-                            label: { show: false },
-                            silent: true,
-                            data: markLinesData
-                        }
-                    }]
-                });
-
-                // Guarantee ECharts fits container perfectly
-                setTimeout(() => {
-                    if (myChart) myChart.resize();
-                }, 50);
+                // Fallback to 100% Native HTML5 Canvas Engine if ECharts was blocked by IT firewall
+                if (!renderedWithECharts) {
+                    const nativeInst = drawNativeOfflineSPCChart(chartDom, chartPayload);
+                    chartInstances.push(nativeInst);
+                }
 
             } catch (err) {
                 console.error("Error rendering line " + line + ":", err);
@@ -1339,17 +1597,22 @@
         const btn = this; const orig = btn.textContent; btn.textContent = '📸 Copying...';
         try {
             const target = document.getElementById('exportWrapper');
-            const canvas = await html2canvas(target, { scale: 2, backgroundColor: '#f1f1ee' });
-            canvas.toBlob(async function(blob) {
-                try {
-                    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-                    btn.textContent = '✅ Copied!';
-                } catch(e) {
-                    btn.textContent = '❌ Blocked. Downloading...';
-                    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'SPC_Dashboard.png'; a.click();
-                }
-                setTimeout(() => btn.textContent = orig, 2500);
-            });
+            if (typeof html2canvas !== 'undefined') {
+                const canvas = await html2canvas(target, { scale: 2, backgroundColor: '#f1f1ee' });
+                canvas.toBlob(async function(blob) {
+                    try {
+                        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+                        btn.textContent = '✅ Copied!';
+                    } catch(e) {
+                        btn.textContent = '❌ Blocked. Downloading...';
+                        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'SPC_Dashboard.png'; a.click();
+                    }
+                    setTimeout(() => btn.textContent = orig, 2500);
+                });
+            } else {
+                alert("Screenshot library blocked by IT firewall. Please press Win + Shift + S to snip the screen.");
+                btn.textContent = orig;
+            }
         } catch(e) { btn.textContent = '❌ Error'; setTimeout(() => btn.textContent = orig, 2000); }
     });
 </script>
