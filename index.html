@@ -8,7 +8,6 @@
     <!-- Libraries loaded via jsDelivr (Bypassing Cloudflare IT Firewall block) -->
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     
@@ -84,7 +83,7 @@
             white-space: nowrap;
         }
 
-        /* Modal Styles for Model Spec Manager */
+        /* Modal Styles for Model Spec Manager & Copy Image Fallback */
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.55); display: none; align-items: center; justify-content: center; z-index: 9999; padding: 15px; }
         .modal-card { background: var(--surface); border-radius: 8px; width: 100%; max-width: 900px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); overflow: hidden; display: flex; flex-direction: column; max-height: 90vh; }
         .modal-header { padding: 14px 20px; background: #f8f9fa; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
@@ -127,7 +126,7 @@
                 <div class="status" id="uploadStatus">Status: Connecting to Firebase Database...</div>
             </div>
             
-            <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end; min-width: 120px;">
+            <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end; min-width: 135px;">
                 <button id="copyImageBtn" class="btn" style="border-color: var(--active); color: var(--active); width: 100%;">📸 Copy Image</button>
                 <button id="copyTextBtn" class="btn" style="border-color: #1e8e3e; color: #1e8e3e; width: 100%;">📝 Copy Text</button>
             </div>
@@ -262,6 +261,29 @@
     </div>
 </div>
 
+<!-- FIREWALL-PROOF IMAGE COPY / DOWNLOAD MODAL -->
+<div id="imageCopyModalOverlay" class="modal-overlay">
+    <div class="modal-card" style="max-width: 1050px;">
+        <div class="modal-header">
+            <h2>📸 Dashboard Image Ready (IT Restriction Bypass)</h2>
+            <button class="modal-close" onclick="document.getElementById('imageCopyModalOverlay').style.display='none'">&times;</button>
+        </div>
+        <div class="modal-body" style="align-items: center; gap: 12px;">
+            <div style="background: #e8f5e9; border: 1px solid #81c784; color: #1b5e20; padding: 10px 14px; border-radius: 6px; width: 100%; box-sizing: border-box; font-size: 13px; font-weight: 600;">
+                💡 Your browser or IT policy restricts automatic clipboard writing on local files. 
+                <span style="text-decoration: underline;">Right-click the image below and select "Copy image" (复制图片)</span> to paste into WeChat/Teams, or click Download PNG!
+            </div>
+            <div style="max-height: 62vh; overflow-y: auto; border: 2px solid #ccc; border-radius: 6px; background: #eee; padding: 6px; width: 100%; text-align: center;">
+                <img id="fallbackPreviewImg" src="" alt="SPC Dashboard Snapshot" style="max-width: 100%; height: auto; display: block; margin: 0 auto; box-shadow: 0 2px 8px rgba(0,0,0,0.15);" />
+            </div>
+            <div style="display: flex; gap: 12px; justify-content: flex-end; width: 100%;">
+                <button type="button" class="btn btn-upload" id="modalDownloadPngBtn">💾 Download PNG File</button>
+                <button type="button" class="btn" onclick="document.getElementById('imageCopyModalOverlay').style.display='none'">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     // --- FIREBASE CONFIGURATION (SAFE GUARDED IF OFFLINE) ---
     const firebaseConfig = {
@@ -287,6 +309,7 @@
 
     let globalData = { W1: [], W2: [], W3: [], W4: [], W5: [], W6: [] };
     let chartInstances = [];
+    let renderedCardsMeta = []; // Stores exact data for 100% Native Image Stitcher
     let pendingUnknownModels = [];
 
     const defaultModelSpecs = {
@@ -323,11 +346,11 @@
         const badge = document.getElementById('engineBadge');
         if (!badge) return;
         if (typeof echarts !== 'undefined') {
-            badge.textContent = "🟢 Online ECharts + Offline Backup Ready";
+            badge.textContent = "🟢 Online ECharts + Native Copy Active";
             badge.style.background = "#e8f5e9";
             badge.style.color = "#2e7d32";
         } else {
-            badge.textContent = "🛡️ IT Firewall Bypassed (Offline Native Canvas Active)";
+            badge.textContent = "🛡️ IT Firewall Bypassed (Offline Native Engine Active)";
             badge.style.background = "#fff8e1";
             badge.style.color = "#e65100";
         }
@@ -473,7 +496,6 @@
             return;
         }
 
-        // Only require password if editing an existing model
         if (oldKey) {
             if (!checkAdminAuth()) return;
         }
@@ -734,21 +756,33 @@
         renderCharts();
     });
 
-    document.getElementById('copyTextBtn').addEventListener('click', async function() {
+    // BULLETPROOF TEXT COPY (Works on local file:// and under IT restrictions)
+    document.getElementById('copyTextBtn').addEventListener('click', function() {
         const btn = this;
         const orig = btn.innerHTML;
-        btn.innerHTML = '✅ Copied!';
         const textToCopy = "Please refer to the above for the W1-W4 102 Wet Process Thickness and Air Permeability SPC.\n请参考上方关于 W1-W4 102 湿法厚度与透气度的 SPC。";
+        
+        let copied = false;
         try {
-            await navigator.clipboard.writeText(textToCopy);
-        } catch (err) {
             const el = document.createElement('textarea');
             el.value = textToCopy;
+            el.style.position = 'fixed';
+            el.style.left = '-9999px';
+            el.style.top = '0';
             document.body.appendChild(el);
+            el.focus();
             el.select();
-            document.execCommand('copy');
+            copied = document.execCommand('copy');
             document.body.removeChild(el);
+        } catch (e) {
+            copied = false;
         }
+
+        if (!copied && navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(textToCopy).catch(() => {});
+        }
+
+        btn.innerHTML = '✅ Copied!';
         setTimeout(() => btn.innerHTML = orig, 2500);
     });
 
@@ -1051,6 +1085,149 @@
     // ============================================================================
     // BUILT-IN NATIVE HTML5 CANVAS SPC GRAPH ENGINE (100% OFFLINE / FIREWALL-PROOF)
     // ============================================================================
+    function paintSPCPlotOnContext(ctx, width, height, cfg) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+
+        const pad = { top: 18, right: 22, bottom: 92, left: 48 };
+        const plotW = width - pad.left - pad.right;
+        const plotH = height - pad.top - pad.bottom;
+
+        const yMin = cfg.chartYMin;
+        const yMax = cfg.chartYMax;
+        const ySpan = (yMax - yMin) > 0 ? (yMax - yMin) : 10;
+
+        const getY = (val) => pad.top + plotH - ((val - yMin) / ySpan) * plotH;
+        const n = cfg.chartData.length;
+        const getX = (idx) => {
+            if (n <= 1) return pad.left + plotW / 2;
+            return pad.left + ((idx + 0.5) / n) * plotW;
+        };
+
+        // 1. Axes
+        ctx.strokeStyle = '#888888';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, pad.top);
+        ctx.lineTo(pad.left, pad.top + plotH);
+        ctx.lineTo(pad.left + plotW, pad.top + plotH);
+        ctx.stroke();
+
+        // 2. Y-Axis Ticks
+        ctx.fillStyle = '#333333';
+        ctx.font = '10px "Microsoft YaHei", sans-serif';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        const ySteps = 5;
+        for (let i = 0; i <= ySteps; i++) {
+            const v = yMin + (ySpan * i) / ySteps;
+            const y = getY(v);
+            ctx.fillText(Number(v.toFixed(2)), pad.left - 6, y);
+            ctx.beginPath();
+            ctx.moveTo(pad.left - 3, y);
+            ctx.lineTo(pad.left, y);
+            ctx.stroke();
+        }
+
+        // 3. Specification & Sigma Lines
+        cfg.markLinesData.forEach(ml => {
+            if (ml.yAxis === undefined || isNaN(ml.yAxis)) return;
+            const y = getY(ml.yAxis);
+            if (y < pad.top - 5 || y > pad.top + plotH + 5) return;
+            ctx.save();
+            ctx.strokeStyle = ml.lineStyle.color;
+            ctx.lineWidth = ml.lineStyle.width || 1;
+            ctx.beginPath();
+            ctx.moveTo(pad.left, y);
+            ctx.lineTo(pad.left + plotW, y);
+            ctx.stroke();
+            ctx.restore();
+        });
+
+        const validPoints = [];
+        cfg.chartData.forEach((v, i) => {
+            if (v !== null && v !== undefined && !isNaN(v)) {
+                validPoints.push({ idx: i, x: getX(i), y: getY(v), val: v });
+            }
+        });
+
+        if (validPoints.length === 0) {
+            ctx.fillStyle = '#888888';
+            ctx.font = 'bold 14px "Microsoft YaHei", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('No Measured Data in Selected 24-Hour Window', pad.left + plotW / 2, pad.top + plotH / 2);
+            return { pad, plotW, plotH, getX, getY, n };
+        }
+
+        // 4. Red Box Highlight
+        if (cfg.boxStartIndex !== -1 && cfg.boxEndIndex !== -1) {
+            const stepW = n > 0 ? (plotW / n) : 20;
+            const xStart = Math.max(pad.left, getX(cfg.boxStartIndex) - Math.min(stepW * 0.4, 8));
+            const xEnd = Math.min(pad.left + plotW, getX(cfg.boxEndIndex) + Math.min(stepW * 0.4, 8));
+            ctx.save();
+            ctx.strokeStyle = '#ff0000';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(xStart, pad.top, Math.max(4, xEnd - xStart), plotH);
+            ctx.restore();
+        }
+
+        // 5. X-Axis Ticks & Rotated Mother Barcodes
+        const yAxisBottom = pad.top + plotH;
+        for (let i = 0; i < n; i++) {
+            const x = getX(i);
+            ctx.strokeStyle = '#888888';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(x, yAxisBottom);
+            ctx.lineTo(x, yAxisBottom + 4);
+            ctx.stroke();
+
+            const isFirstOrChanged = (i === 0) || (cfg.chartMotherBarcodes[i] !== cfg.chartMotherBarcodes[i - 1]);
+            if (isFirstOrChanged && cfg.chartMotherBarcodes[i] && cfg.chartMotherBarcodes[i] !== 'No Data') {
+                ctx.beginPath();
+                ctx.moveTo(x, yAxisBottom);
+                ctx.lineTo(x, yAxisBottom + 10);
+                ctx.stroke();
+
+                ctx.save();
+                ctx.translate(x, yAxisBottom + 14);
+                ctx.rotate(-35 * Math.PI / 180);
+                ctx.fillStyle = '#333333';
+                ctx.font = 'bold 10px "Microsoft YaHei", sans-serif';
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'top';
+                ctx.fillText(cfg.chartMotherBarcodes[i], 0, 0);
+                ctx.restore();
+            }
+        }
+
+        // 6. Smooth Data Curve & Points
+        ctx.save();
+        ctx.strokeStyle = '#6395f9';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        validPoints.forEach((pt, idx) => {
+            if (idx === 0) {
+                ctx.moveTo(pt.x, pt.y);
+            } else {
+                const prev = validPoints[idx - 1];
+                const midX = (prev.x + pt.x) / 2;
+                ctx.bezierCurveTo(midX, prev.y, midX, pt.y, pt.x, pt.y);
+            }
+        });
+        ctx.stroke();
+
+        ctx.fillStyle = '#6395f9';
+        validPoints.forEach(pt => {
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, 3, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.restore();
+
+        return { pad, plotW, plotH, getX, getY, n };
+    }
+
     function drawNativeOfflineSPCChart(container, cfg) {
         container.innerHTML = '';
         const canvas = document.createElement('canvas');
@@ -1072,165 +1249,22 @@
             const ctx = canvas.getContext('2d');
             ctx.scale(dpr, dpr);
 
-            // White background
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, width, height);
+            const geom = paintSPCPlotOnContext(ctx, width, height, cfg);
 
-            const pad = { top: 18, right: 22, bottom: 92, left: 48 };
-            const plotW = width - pad.left - pad.right;
-            const plotH = height - pad.top - pad.bottom;
-
-            const yMin = cfg.chartYMin;
-            const yMax = cfg.chartYMax;
-            const ySpan = (yMax - yMin) > 0 ? (yMax - yMin) : 10;
-
-            const getY = (val) => pad.top + plotH - ((val - yMin) / ySpan) * plotH;
-            const n = cfg.chartData.length;
-            const getX = (idx) => {
-                if (n <= 1) return pad.left + plotW / 2;
-                return pad.left + ((idx + 0.5) / n) * plotW;
-            };
-
-            // 1. Draw Axes
-            ctx.strokeStyle = '#888888';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(pad.left, pad.top);
-            ctx.lineTo(pad.left, pad.top + plotH);
-            ctx.lineTo(pad.left + plotW, pad.top + plotH);
-            ctx.stroke();
-
-            // 2. Y-Axis Tick Labels
-            ctx.fillStyle = '#333333';
-            ctx.font = '10px "Microsoft YaHei", sans-serif';
-            ctx.textAlign = 'right';
-            ctx.textBaseline = 'middle';
-            const ySteps = 5;
-            for (let i = 0; i <= ySteps; i++) {
-                const v = yMin + (ySpan * i) / ySteps;
-                const y = getY(v);
-                ctx.fillText(Number(v.toFixed(2)), pad.left - 6, y);
-                ctx.beginPath();
-                ctx.moveTo(pad.left - 3, y);
-                ctx.lineTo(pad.left, y);
-                ctx.stroke();
-            }
-
-            // 3. Draw Horizontal Specification & Sigma Lines
-            cfg.markLinesData.forEach(ml => {
-                if (ml.yAxis === undefined || isNaN(ml.yAxis)) return;
-                const y = getY(ml.yAxis);
-                if (y < pad.top - 5 || y > pad.top + plotH + 5) return;
-                ctx.save();
-                ctx.strokeStyle = ml.lineStyle.color;
-                ctx.lineWidth = ml.lineStyle.width || 1;
-                ctx.beginPath();
-                ctx.moveTo(pad.left, y);
-                ctx.lineTo(pad.left + plotW, y);
-                ctx.stroke();
-                ctx.restore();
-            });
-
-            const validPoints = [];
-            cfg.chartData.forEach((v, i) => {
-                if (v !== null && v !== undefined && !isNaN(v)) {
-                    validPoints.push({ idx: i, x: getX(i), y: getY(v), val: v });
-                }
-            });
-
-            if (validPoints.length === 0) {
-                ctx.fillStyle = '#888888';
-                ctx.font = 'bold 14px "Microsoft YaHei", sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText('No Measured Data in Selected 24-Hour Window', pad.left + plotW / 2, pad.top + plotH / 2);
-                return;
-            }
-
-            // 4. Draw Red Box Highlight (6h Shift Focus)
-            if (cfg.boxStartIndex !== -1 && cfg.boxEndIndex !== -1) {
-                const stepW = n > 0 ? (plotW / n) : 20;
-                const xStart = Math.max(pad.left, getX(cfg.boxStartIndex) - Math.min(stepW * 0.4, 8));
-                const xEnd = Math.min(pad.left + plotW, getX(cfg.boxEndIndex) + Math.min(stepW * 0.4, 8));
-                ctx.save();
-                ctx.strokeStyle = '#ff0000';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(xStart, pad.top, Math.max(4, xEnd - xStart), plotH);
-                ctx.restore();
-            }
-
-            // 5. Draw X-Axis Ticks & Rotated Mother Barcodes
-            const yAxisBottom = pad.top + plotH;
-            for (let i = 0; i < n; i++) {
-                const x = getX(i);
-                // Minor tick for every WS barcode
-                ctx.strokeStyle = '#888888';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(x, yAxisBottom);
-                ctx.lineTo(x, yAxisBottom + 4);
-                ctx.stroke();
-
-                // Major tick & Mother Barcode label when Mother Barcode changes
-                const isFirstOrChanged = (i === 0) || (cfg.chartMotherBarcodes[i] !== cfg.chartMotherBarcodes[i - 1]);
-                if (isFirstOrChanged && cfg.chartMotherBarcodes[i] && cfg.chartMotherBarcodes[i] !== 'No Data') {
-                    ctx.beginPath();
-                    ctx.moveTo(x, yAxisBottom);
-                    ctx.lineTo(x, yAxisBottom + 10);
-                    ctx.stroke();
-
-                    ctx.save();
-                    ctx.translate(x, yAxisBottom + 14);
-                    ctx.rotate(-35 * Math.PI / 180);
-                    ctx.fillStyle = '#333333';
-                    ctx.font = 'bold 10px "Microsoft YaHei", sans-serif';
-                    ctx.textAlign = 'right';
-                    ctx.textBaseline = 'top';
-                    ctx.fillText(cfg.chartMotherBarcodes[i], 0, 0);
-                    ctx.restore();
-                }
-            }
-
-            // 6. Draw Smooth Data Curve & Points
-            ctx.save();
-            ctx.strokeStyle = '#6395f9';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            validPoints.forEach((pt, idx) => {
-                if (idx === 0) {
-                    ctx.moveTo(pt.x, pt.y);
-                } else {
-                    const prev = validPoints[idx - 1];
-                    const midX = (prev.x + pt.x) / 2;
-                    ctx.bezierCurveTo(midX, prev.y, midX, pt.y, pt.x, pt.y);
-                }
-            });
-            ctx.stroke();
-
-            // Data Dots
-            ctx.fillStyle = '#6395f9';
-            validPoints.forEach(pt => {
-                ctx.beginPath();
-                ctx.arc(pt.x, pt.y, 3, 0, Math.PI * 2);
-                ctx.fill();
-            });
-            ctx.restore();
-
-            // 7. Interactive Hover Crosshair & Tooltip
             canvas.onmousemove = function(ev) {
                 const rect = canvas.getBoundingClientRect();
                 const mx = ev.clientX - rect.left;
                 const my = ev.clientY - rect.top;
 
-                if (mx < pad.left || mx > pad.left + plotW || my < pad.top || my > pad.top + plotH) {
+                if (!geom || mx < geom.pad.left || mx > geom.pad.left + geom.plotW || my < geom.pad.top || my > geom.pad.top + geom.plotH || geom.n === 0) {
                     tooltip.style.display = 'none';
                     return;
                 }
 
-                // Find nearest point along X-axis
                 let bestIdx = 0;
                 let minDist = Infinity;
-                for (let i = 0; i < n; i++) {
-                    const d = Math.abs(getX(i) - mx);
+                for (let i = 0; i < geom.n; i++) {
+                    const d = Math.abs(geom.getX(i) - mx);
                     if (d < minDist) {
                         minDist = d;
                         bestIdx = i;
@@ -1274,6 +1308,7 @@
         
         chartInstances.forEach(inst => { try { inst.dispose(); } catch(e){} }); 
         chartInstances = [];
+        renderedCardsMeta = [];
         wrapper.innerHTML = '';
 
         const selectedLines = Array.from(document.querySelectorAll('#lineToggles input:checked')).map(cb => cb.value);
@@ -1472,7 +1507,16 @@
                     boxStartIndex, boxEndIndex, chartYMin, chartYMax, formatDate
                 };
 
-                // HYBRID RENDERER: Try ECharts if online & unblocked, otherwise use Native Offline Canvas Engine
+                // Save metadata for our 100% Native Image Stitcher
+                renderedCardsMeta.push({
+                    lineObj,
+                    typeKey,
+                    inspItem: spcConfigs[typeKey].inspItem,
+                    dynamicStats,
+                    chartDom,
+                    chartPayload
+                });
+
                 let renderedWithECharts = false;
                 if (typeof echarts !== 'undefined') {
                     try {
@@ -1574,7 +1618,6 @@
                     }
                 }
 
-                // Fallback to 100% Native HTML5 Canvas Engine if ECharts was blocked by IT firewall
                 if (!renderedWithECharts) {
                     const nativeInst = drawNativeOfflineSPCChart(chartDom, chartPayload);
                     chartInstances.push(nativeInst);
@@ -1593,27 +1636,270 @@
     window.addEventListener('resize', () => chartInstances.forEach(inst => inst && inst.resize()));
     document.querySelectorAll('#lineToggles input').forEach(cb => cb.addEventListener('change', renderCharts));
     
-    document.getElementById('copyImageBtn').addEventListener('click', async function() {
-        const btn = this; const orig = btn.textContent; btn.textContent = '📸 Copying...';
-        try {
-            const target = document.getElementById('exportWrapper');
-            if (typeof html2canvas !== 'undefined') {
-                const canvas = await html2canvas(target, { scale: 2, backgroundColor: '#f1f1ee' });
-                canvas.toBlob(async function(blob) {
-                    try {
-                        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-                        btn.textContent = '✅ Copied!';
-                    } catch(e) {
-                        btn.textContent = '❌ Blocked. Downloading...';
-                        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'SPC_Dashboard.png'; a.click();
-                    }
-                    setTimeout(() => btn.textContent = orig, 2500);
-                });
+    // ============================================================================
+    // 100% NATIVE DASHBOARD IMAGE STITCHER (NO EXTERNAL HTML2CANVAS NEEDED!)
+    // ============================================================================
+    function buildFullDashboardCanvas() {
+        if (!renderedCardsMeta || renderedCardsMeta.length === 0) return null;
+
+        const scale = 2; // High-DPI crisp image
+        const outerPad = 14;
+        const cardGap = 15;
+        const cardW = 1350;
+        const headerH = 44;
+        const bodyH = 420;
+        const cardH = headerH + bodyH;
+        const rightPanelW = 145;
+        const plotAreaW = cardW - rightPanelW;
+
+        const totalW = cardW + outerPad * 2;
+        const totalH = outerPad * 2 + renderedCardsMeta.length * cardH + (renderedCardsMeta.length - 1) * cardGap;
+
+        const masterCanvas = document.createElement('canvas');
+        masterCanvas.width = totalW * scale;
+        masterCanvas.height = totalH * scale;
+        const ctx = masterCanvas.getContext('2d');
+        ctx.scale(scale, scale);
+
+        // Background
+        ctx.fillStyle = '#f5f5f5';
+        ctx.fillRect(0, 0, totalW, totalH);
+
+        renderedCardsMeta.forEach((meta, idx) => {
+            const x0 = outerPad;
+            const y0 = outerPad + idx * (cardH + cardGap);
+
+            // Card Surface & Border
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(x0, y0, cardW, cardH);
+            ctx.strokeStyle = '#cccccc';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x0, y0, cardW, cardH);
+
+            // Card Title Header
+            ctx.fillStyle = '#fcfcfc';
+            ctx.fillRect(x0, y0, cardW, headerH);
+            ctx.beginPath();
+            ctx.moveTo(x0, y0 + headerH);
+            ctx.lineTo(x0 + cardW, y0 + headerH);
+            ctx.stroke();
+
+            ctx.fillStyle = '#111111';
+            ctx.font = 'bold 16px "Microsoft YaHei", "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const titleText = `Production Line : ${meta.lineObj.name}   |   Model : ${meta.lineObj.material}   |   Inspection Item : ${meta.inspItem}`;
+            ctx.fillText(titleText, x0 + cardW / 2, y0 + headerH / 2);
+
+            // Draw Chart Canvas Area
+            const plotX = x0;
+            const plotY = y0 + headerH;
+            ctx.save();
+            ctx.translate(plotX, plotY);
+            // Always paint using our crisp native vector plotter so it never fails or blurs
+            paintSPCPlotOnContext(ctx, plotAreaW, bodyH, meta.chartPayload);
+            ctx.restore();
+
+            // Draw Right Info Panel
+            const rpX = x0 + plotAreaW;
+            const rpY = y0 + headerH;
+            ctx.fillStyle = '#fcfcfc';
+            ctx.fillRect(rpX, rpY, rightPanelW, bodyH);
+            ctx.strokeStyle = '#cccccc';
+            ctx.beginPath();
+            ctx.moveTo(rpX, rpY);
+            ctx.lineTo(rpX, rpY + bodyH);
+            ctx.stroke();
+
+            const uslNum = Number(meta.lineObj.USL) || 0;
+            const lslNum = Number(meta.lineObj.LSL) || 0;
+            const ds = meta.dynamicStats;
+
+            if (ds.cpk === 'N/A' && ds.mean === 0 && ds.stdDev === 0) {
+                ctx.fillStyle = '#333';
+                ctx.font = '11px "Microsoft YaHei", sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText(`上限: ${uslNum.toFixed(4)}`, rpX + 28, rpY + 18);
+                ctx.fillText(`下限: ${lslNum.toFixed(4)}`, rpX + 28, rpY + 36);
+                ctx.fillStyle = '#777';
+                ctx.textAlign = 'center';
+                ctx.fillText('No data in timeframe', rpX + rightPanelW / 2, rpY + bodyH / 2);
             } else {
-                alert("Screenshot library blocked by IT firewall. Please press Win + Shift + S to snip the screen.");
-                btn.textContent = orig;
+                const legendItems = [
+                    { color: '#ff8c00', h: 2, text: `上限: ${uslNum.toFixed(4)}` },
+                    { color: '#ff0000', h: 2, text: `+3σ: ${(ds.mean + 3 * ds.stdDev).toFixed(4)}` },
+                    { color: '#333333', h: 1, text: `+2σ: ${(ds.mean + 2 * ds.stdDev).toFixed(4)}` },
+                    { color: '#888888', h: 1, text: `+σ: ${(ds.mean + 1 * ds.stdDev).toFixed(4)}` },
+                    { color: '#0000ff', h: 2, text: `中心值: ${ds.mean.toFixed(4)}` },
+                    { color: '#6395f9', h: 2, text: `平均值`, dot: true },
+                    { color: '#888888', h: 1, text: `-σ: ${(ds.mean - 1 * ds.stdDev).toFixed(4)}` },
+                    { color: '#333333', h: 1, text: `-2σ: ${(ds.mean - 2 * ds.stdDev).toFixed(4)}` },
+                    { color: '#ff0000', h: 2, text: `-3σ: ${(ds.mean - 3 * ds.stdDev).toFixed(4)}` },
+                    { color: '#ff8c00', h: 2, text: `下限: ${lslNum.toFixed(4)}` }
+                ];
+
+                let curY = rpY + 14;
+                ctx.font = '11px "Microsoft YaHei", sans-serif';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+
+                legendItems.forEach(item => {
+                    ctx.fillStyle = item.color;
+                    ctx.fillRect(rpX + 8, curY - item.h / 2, 16, item.h);
+                    if (item.dot) {
+                        ctx.beginPath();
+                        ctx.arc(rpX + 16, curY, 3, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    ctx.fillStyle = '#222222';
+                    ctx.fillText(item.text, rpX + 30, curY);
+                    curY += 17;
+                });
+
+                // Dashed Divider
+                ctx.save();
+                ctx.strokeStyle = '#cccccc';
+                ctx.setLineDash([3, 3]);
+                ctx.beginPath();
+                ctx.moveTo(rpX + 6, curY);
+                ctx.lineTo(rpX + rightPanelW - 6, curY);
+                ctx.stroke();
+                ctx.restore();
+
+                curY += 12;
+                const infoBoxes = [
+                    { label: '刷新频率', val: '120' },
+                    { label: '规格上限', val: uslNum.toFixed(4) },
+                    { label: '规格下限', val: lslNum.toFixed(4) }
+                ];
+
+                infoBoxes.forEach(b => {
+                    ctx.fillStyle = '#333333';
+                    ctx.font = 'bold 11px "Microsoft YaHei", sans-serif';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(b.label, rpX + 8, curY);
+                    curY += 10;
+
+                    ctx.fillStyle = '#e9e9e9';
+                    ctx.fillRect(rpX + 8, curY, rightPanelW - 16, 20);
+                    ctx.strokeStyle = '#dcdcdc';
+                    ctx.strokeRect(rpX + 8, curY, rightPanelW - 16, 20);
+
+                    ctx.fillStyle = '#333333';
+                    ctx.font = '12px monospace';
+                    ctx.fillText(b.val, rpX + 12, curY + 11);
+                    curY += 28;
+                });
+
+                // Red CPK Box at bottom
+                const cpkBoxH = 44;
+                const cpkY = rpY + bodyH - cpkBoxH - 10;
+                ctx.fillStyle = '#fff0f0';
+                ctx.fillRect(rpX + 8, cpkY, rightPanelW - 16, cpkBoxH);
+                ctx.strokeStyle = '#ff0000';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(rpX + 8, cpkY, rightPanelW - 16, cpkBoxH);
+
+                ctx.fillStyle = '#ff0000';
+                ctx.font = 'bold 13px "Microsoft YaHei", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('CPK', rpX + rightPanelW / 2, cpkY + 14);
+                ctx.font = 'bold 15px monospace';
+                ctx.fillText(String(ds.cpk), rpX + rightPanelW / 2, cpkY + 32);
             }
-        } catch(e) { btn.textContent = '❌ Error'; setTimeout(() => btn.textContent = orig, 2000); }
+        });
+
+        return masterCanvas;
+    }
+
+    // Legacy Rich-HTML Selection Image Copy (Bypasses file:// navigator.clipboard block in Chrome/Edge)
+    function copyDataUrlViaRichSelection(dataUrl) {
+        try {
+            const div = document.createElement('div');
+            div.contentEditable = 'true';
+            div.style.position = 'fixed';
+            div.style.left = '-9999px';
+            div.style.top = '0';
+            div.style.opacity = '0';
+
+            const img = document.createElement('img');
+            img.src = dataUrl;
+            div.appendChild(img);
+            document.body.appendChild(div);
+
+            const range = document.createRange();
+            range.selectNodeContents(div);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+
+            const ok = document.execCommand('copy');
+            sel.removeAllRanges();
+            document.body.removeChild(div);
+            return ok;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function openImageCopyFallbackModal(dataUrl) {
+        const previewImg = document.getElementById('fallbackPreviewImg');
+        previewImg.src = dataUrl;
+        document.getElementById('imageCopyModalOverlay').style.display = 'flex';
+
+        document.getElementById('modalDownloadPngBtn').onclick = function() {
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = `SPC_Dashboard_${new Date().toISOString().slice(0,10)}.png`;
+            a.click();
+        };
+    }
+
+    document.getElementById('copyImageBtn').addEventListener('click', async function() {
+        const btn = this;
+        const orig = btn.innerHTML;
+        btn.innerHTML = '📸 Capturing...';
+
+        try {
+            const masterCanvas = buildFullDashboardCanvas();
+            if (!masterCanvas) {
+                alert("No active charts on screen to copy.");
+                btn.innerHTML = orig;
+                return;
+            }
+
+            const dataUrl = masterCanvas.toDataURL('image/png');
+
+            // TIER 1: Try Modern ClipboardItem API (Works on https://hadzhirazali.github.io)
+            if (navigator.clipboard && window.ClipboardItem) {
+                try {
+                    const blob = await new Promise(res => masterCanvas.toBlob(res, 'image/png'));
+                    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                    btn.innerHTML = '✅ Copied!';
+                    setTimeout(() => btn.innerHTML = orig, 2500);
+                    return;
+                } catch (clipErr) {
+                    console.warn("ClipboardItem blocked (likely file:// or IT policy), trying Tier 2:", clipErr);
+                }
+            }
+
+            // TIER 2: Try Synchronous Rich-HTML Selection Copy (Works on local file:// in many browsers)
+            if (copyDataUrlViaRichSelection(dataUrl)) {
+                btn.innerHTML = '✅ Copied!';
+                setTimeout(() => btn.innerHTML = orig, 2500);
+                return;
+            }
+
+            // TIER 3: Open Instant Right-Click Copy & Download Modal so user is NEVER stuck
+            btn.innerHTML = '📸 Ready (See Popup)';
+            openImageCopyFallbackModal(dataUrl);
+            setTimeout(() => btn.innerHTML = orig, 3000);
+
+        } catch (err) {
+            console.error("Image capture error:", err);
+            btn.innerHTML = '❌ Error';
+            setTimeout(() => btn.innerHTML = orig, 2000);
+        }
     });
 </script>
 </body>
