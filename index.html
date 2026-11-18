@@ -76,51 +76,71 @@
             box-shadow: 0 3px 10px rgba(0,0,0,0.18); z-index: 100; line-height: 1.45; white-space: nowrap;
         }
 
-        /* TV STREAM MODE */
+        /* ============================================================================
+           ANDROID TV 1080p VIRTUAL CANVAS ENGINE (IMMUNE TO ANDROID 200% DPI SCALING!)
+           ============================================================================ */
         #tvStreamOverlay {
             display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: #eef1f5; z-index: 9500; flex-direction: column; padding: 3px 6px;
-            box-sizing: border-box; overflow: hidden; width: 100vw; height: 100vh;
+            background: #eef1f5; z-index: 9500; overflow: hidden; width: 100vw; height: 100vh;
         }
         body.tv-mode-active { overflow: hidden; }
-        body.tv-mode-active #tvStreamOverlay { display: flex; }
+        body.tv-mode-active #tvStreamOverlay { display: block; }
+
+        /* Locked 1920x1080 Virtual Stage that auto-scales to any Android TV resolution */
+        #tvVirtualStage {
+            width: 1920px; height: 1080px; position: absolute; top: 0; left: 0;
+            transform-origin: top left; display: flex; flex-direction: column;
+            padding: 8px 12px; box-sizing: border-box; background: #eef1f5; overflow: hidden;
+        }
 
         .tv-top-bar {
             display: flex; justify-content: space-between; align-items: center;
-            background: #1a237e; color: #ffffff; padding: 2px 10px; border-radius: 4px;
-            margin-bottom: 3px; height: 24px; box-sizing: border-box; flex-shrink: 0;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.15); transition: background-color 0.4s ease;
+            background: #1a237e; color: #ffffff; padding: 4px 14px; border-radius: 6px;
+            margin-bottom: 6px; height: 34px; box-sizing: border-box; flex-shrink: 0;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15); transition: background-color 0.4s ease;
         }
         .tv-top-bar.sync-flash { background: #1b5e20; }
-        .tv-top-title { font-size: 12.5px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
-        .tv-top-meta { font-size: 10.5px; color: #e8eaf6; display: flex; align-items: center; gap: 10px; }
-        .tv-exit-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.4); color: #fff; padding: 1px 8px; border-radius: 3px; cursor: pointer; font-size: 10.5px; font-weight: 600; }
-        .tv-exit-btn:hover { background: rgba(255,255,255,0.28); }
+        .tv-top-title { font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 12px; white-space: nowrap; }
+        .tv-top-meta { font-size: 13px; color: #e8eaf6; display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+        .tv-exit-btn { background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.45); color: #fff; padding: 3px 10px; border-radius: 4px; cursor: pointer; font-size: 12.5px; font-weight: 600; }
+        .tv-exit-btn:hover { background: rgba(255,255,255,0.32); }
 
-        .tv-split-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; flex: 1 1 auto; min-height: 0; width: 100%; height: calc(100vh - 33px); }
-        .tv-col { display: flex; flex-direction: column; gap: 3px; min-height: 0; height: 100%; overflow: hidden; }
-        .tv-col-header { text-align: center; font-weight: 700; font-size: 11px; padding: 1px 6px; border-radius: 3px; color: #fff; flex-shrink: 0; height: 18px; line-height: 16px; box-sizing: border-box; }
+        .tv-split-grid { display: grid; grid-template-columns: 942px 942px; gap: 12px; width: 1896px; height: 1024px; flex-shrink: 0; }
+        .tv-col { display: flex; flex-direction: column; gap: 6px; width: 942px; height: 1024px; overflow: hidden; }
+        .tv-col-header { text-align: center; font-weight: 700; font-size: 14px; padding: 3px 8px; border-radius: 4px; color: #fff; flex-shrink: 0; height: 26px; line-height: 20px; box-sizing: border-box; }
         .tv-col-header.air-hdr { background: #1565c0; }
         .tv-col-header.thick-hdr { background: #2e7d32; }
-        .tv-cards-stack { display: grid; grid-template-rows: repeat(4, minmax(0, 1fr)); gap: 4px; flex: 1 1 auto; min-height: 0; height: 100%; overflow: hidden; }
+        .tv-cards-stack { display: grid; grid-template-rows: repeat(4, 240px); gap: 8px; width: 942px; height: 992px; overflow: hidden; }
 
-        .tv-col .spc-card { margin-bottom: 0; min-height: 0; height: 100%; width: 100%; display: flex; flex-direction: column; box-sizing: border-box; }
-        .tv-col .spc-title { font-size: 10.5px; padding: 1px 6px; height: 17px; line-height: 15px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; }
-        .tv-col .spc-body { flex: 1 1 auto; height: calc(100% - 17px) !important; min-height: 0; width: 100%; display: flex; flex-direction: row; overflow: hidden; }
-        .tv-col .spc-echarts-container { flex: 1 1 auto; width: calc(100% - 128px) !important; height: 100% !important; min-width: 100px; min-height: 0; }
+        .tv-col .spc-card { margin-bottom: 0; height: 240px; width: 942px; display: flex; flex-direction: column; box-sizing: border-box; }
+        .tv-col .spc-title { font-size: 13.5px; padding: 3px 8px; height: 24px; line-height: 18px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; }
+        .tv-col .spc-body { height: 215px !important; width: 940px; display: flex; flex-direction: row; overflow: hidden; }
+        .tv-col .spc-echarts-container { width: 785px !important; height: 215px !important; flex-shrink: 0; }
         
-        /* Enlarged Sigma Details & Stats Panel in TV Mode to fill available vertical space */
-        .tv-col .spc-info-panel { width: 128px; min-width: 128px; height: 100% !important; padding: 3px 5px; font-size: 9.5px; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; }
-        .tv-col .spc-legend { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: space-evenly; gap: 0px; padding-bottom: 2px; margin-bottom: 2px; line-height: 1.15; }
-        .tv-col .spc-legend-item { gap: 4px; font-size: 9.5px; font-weight: 600; color: #111; }
-        .tv-col .spc-line-swatch { width: 11px; }
-        .tv-col .spc-stats-container { flex: 0 0 auto; gap: 1.5px; justify-content: flex-end; }
-        .tv-col .spc-info-box { flex-direction: row; justify-content: space-between; align-items: center; gap: 2px; }
-        .tv-col .spc-info-box-label { font-size: 8.5px; font-weight: 600; }
-        .tv-col .spc-info-box-value { font-size: 9px; padding: 0px 3px; font-weight: 600; }
-        .tv-col .cpk-highlight-box { flex-direction: row !important; justify-content: space-between !important; padding: 1.5px 5px !important; margin-top: 1px !important; border-width: 1.5px !important; }
-        .tv-col .cpk-highlight-box .spc-info-box-label { font-size: 10px !important; }
-        .tv-col .cpk-highlight-box .spc-info-box-value { font-size: 11.5px !important; }
+        /* TV Right Info Panel: Designed for 215px height so CPK and Barcodes are 100% clear & visible */
+        .tv-col .spc-info-panel {
+            width: 155px; min-width: 155px; height: 215px !important; padding: 4px 6px;
+            overflow: hidden; display: flex; flex-direction: column; justify-content: space-between;
+            box-sizing: border-box; background: #fcfcfc;
+        }
+        .tv-col .spc-legend {
+            display: flex; flex-direction: column; justify-content: space-between;
+            gap: 0px; padding-bottom: 3px; margin-bottom: 3px; border-bottom: 1px dashed #ccc;
+            flex: 1 1 auto;
+        }
+        .tv-col .spc-legend-item { gap: 5px; font-size: 11px; font-weight: 700; color: #111; line-height: 1.12; }
+        .tv-col .spc-line-swatch { width: 13px; }
+        .tv-col .spc-stats-container { flex: 0 0 auto; display: flex; flex-direction: column; gap: 3px; }
+        /* Hide non-essential 刷新频率 / duplicate USL-LSL boxes in TV mode so CPK is huge & never cut off */
+        .tv-col .spc-info-box:not(.cpk-highlight-box) { display: none !important; }
+        .tv-col .cpk-highlight-box {
+            display: flex !important; flex-direction: row !important; justify-content: space-between !important;
+            align-items: center !important; padding: 4px 10px !important; margin-top: 0 !important;
+            border: 2px solid #ff0000 !important; background: #fff0f0 !important; border-radius: 5px !important;
+            height: 32px !important; box-sizing: border-box !important;
+        }
+        .tv-col .cpk-highlight-box .spc-info-box-label { font-size: 14px !important; font-weight: 800 !important; color: #d50000 !important; }
+        .tv-col .cpk-highlight-box .spc-info-box-value { font-size: 16px !important; font-weight: 900 !important; color: #d50000 !important; }
 
         /* Modals */
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.55); display: none; align-items: center; justify-content: center; z-index: 9999; padding: 15px; }
@@ -220,27 +240,34 @@
     </div>
 </div>
 
-<!-- TV STREAM FULLSCREEN SPLIT OVERLAY -->
+<!-- TV STREAM FULLSCREEN SPLIT OVERLAY (1920x1080 VIRTUAL STAGE FOR ANDROID TV) -->
 <div id="tvStreamOverlay">
-    <div id="tvTopBar" class="tv-top-bar">
-        <div class="tv-top-title">
-            <span>📺 102 Wet Process — Live SPC TV Stream (W1–W4)</span>
-            <span id="tvTimeframeBadge" style="background: rgba(255,255,255,0.18); padding: 1px 8px; border-radius: 10px; font-size: 10.5px; font-weight: 600;"></span>
-            <span id="tvSyncBadge" style="background: rgba(76,175,80,0.35); border: 1px solid #81c784; padding: 1px 8px; border-radius: 10px; font-size: 10px; font-family: monospace;">🟢 Live Auto-Sync</span>
+    <div id="tvVirtualStage">
+        <div id="tvTopBar" class="tv-top-bar">
+            <div class="tv-top-title">
+                <span>📺 102 Wet Process — Live SPC TV Stream (W1–W4)</span>
+                <span id="tvTimeframeBadge" style="background: rgba(255,255,255,0.18); padding: 2px 10px; border-radius: 10px; font-size: 13px; font-weight: 600;"></span>
+                <span id="tvSyncBadge" style="background: rgba(76,175,80,0.35); border: 1px solid #81c784; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-family: monospace;">🟢 Live Auto-Sync</span>
+            </div>
+            <div class="tv-top-meta">
+                <span>TV Scale:</span>
+                <button type="button" class="tv-exit-btn" onclick="adjustTVZoom(-0.05)">➖</button>
+                <span id="tvZoomLabel" style="font-family: monospace; font-weight: bold; min-width: 42px; text-align: center;">Auto</span>
+                <button type="button" class="tv-exit-btn" onclick="adjustTVZoom(0.05)">➕</button>
+                <button type="button" class="tv-exit-btn" onclick="resetTVZoom()">Auto Fit</button>
+                <span style="margin-left: 6px;">| Press <b>Esc</b> or <b>Back</b> to exit</span>
+                <button type="button" class="tv-exit-btn" style="background: #d32f2f; border-color: #ffcdd2;" onclick="exitTVStreamMode()">✖ Exit TV</button>
+            </div>
         </div>
-        <div class="tv-top-meta">
-            <span>Press <b>Esc</b> (PC) or <b>Back</b> (TV Remote) to exit</span>
-            <button type="button" class="tv-exit-btn" onclick="exitTVStreamMode()">✖ Exit TV</button>
-        </div>
-    </div>
-    <div class="tv-split-grid">
-        <div class="tv-col">
-            <div class="tv-col-header air-hdr">💨 W1 – W4 | SF005 Air Permeability (透气率 — 30h Window)</div>
-            <div id="tvColAir" class="tv-cards-stack"></div>
-        </div>
-        <div class="tv-col">
-            <div class="tv-col-header thick-hdr">📏 W1 – W4 | SF002 Thickness (厚度 — 30h Window)</div>
-            <div id="tvColThick" class="tv-cards-stack"></div>
+        <div class="tv-split-grid">
+            <div class="tv-col">
+                <div class="tv-col-header air-hdr">💨 W1 – W4 | SF005 Air Permeability (透气率 — 30h Window)</div>
+                <div id="tvColAir" class="tv-cards-stack"></div>
+            </div>
+            <div class="tv-col">
+                <div class="tv-col-header thick-hdr">📏 W1 – W4 | SF002 Thickness (厚度 — 30h Window)</div>
+                <div id="tvColThick" class="tv-cards-stack"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -416,10 +443,43 @@
     let chartInstances = [];
     let tvChartInstances = [];
     let isTVMode = false;
+    let tvCustomScale = null; // null = Auto-fit 1920x1080 to TV screen
     let isAutoFollowLatest = true;
     let lastDataFingerprint = "";
     let renderedCardsMeta = [];
     let pendingUnknownModels = [];
+
+    // Automatically scales the 1920x1080 TV stage to fit ANY Android TV viewport (e.g. 960x540, 1280x720, 1920x1080)
+    function applyTVStageTransform() {
+        const stage = document.getElementById('tvVirtualStage');
+        const lbl = document.getElementById('tvZoomLabel');
+        if (!stage) return;
+        const vw = window.innerWidth || document.documentElement.clientWidth || 1920;
+        const vh = window.innerHeight || document.documentElement.clientHeight || 1080;
+
+        if (tvCustomScale === null) {
+            const sx = vw / 1920;
+            const sy = vh / 1080;
+            stage.style.transform = `scale(${sx}, ${sy})`;
+            if (lbl) lbl.textContent = 'Auto';
+        } else {
+            const base = Math.min(vw / 1920, vh / 1080);
+            const finalScale = base * tvCustomScale;
+            stage.style.transform = `scale(${finalScale})`;
+            if (lbl) lbl.textContent = Math.round(tvCustomScale * 100) + '%';
+        }
+    }
+
+    function adjustTVZoom(delta) {
+        if (tvCustomScale === null) tvCustomScale = 1.0;
+        tvCustomScale = Math.max(0.65, Math.min(1.35, Number((tvCustomScale + delta).toFixed(2))));
+        applyTVStageTransform();
+    }
+
+    function resetTVZoom() {
+        tvCustomScale = null;
+        applyTVStageTransform();
+    }
 
     const defaultModelSpecs = {
         "SW509J": { fullName: "200000627|W/SW509J", air: { USL: 80, LSL: 30 }, thick: { USL: 9.5, LSL: 7.1 } },
@@ -1121,23 +1181,23 @@
     function paintSPCPlotOnContext(ctx, width, height, cfg) {
         ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height);
         const isCompact = height < 260;
-        const pad = { top: isCompact ? 5 : 18, right: isCompact ? 6 : 22, bottom: isCompact ? 22 : 92, left: isCompact ? 30 : 48 };
+        const pad = { top: isCompact ? 8 : 18, right: isCompact ? 10 : 22, bottom: isCompact ? 42 : 92, left: isCompact ? 36 : 48 };
         const plotW = Math.max(50, width - pad.left - pad.right), plotH = Math.max(40, height - pad.top - pad.bottom);
         const yMin = cfg.chartYMin, yMax = cfg.chartYMax, ySpan = (yMax - yMin) > 0 ? (yMax - yMin) : 10;
         const getY = (val) => pad.top + plotH - ((val - yMin) / ySpan) * plotH;
         const n = cfg.chartData.length;
         const getX = (idx) => n <= 1 ? (pad.left + plotW / 2) : (pad.left + ((idx + 0.5) / n) * plotW);
 
-        ctx.strokeStyle = '#888888'; ctx.lineWidth = isCompact ? 0.8 : 1;
+        ctx.strokeStyle = '#888888'; ctx.lineWidth = isCompact ? 1 : 1;
         ctx.beginPath(); ctx.moveTo(pad.left, pad.top); ctx.lineTo(pad.left, pad.top + plotH); ctx.lineTo(pad.left + plotW, pad.top + plotH); ctx.stroke();
 
-        ctx.fillStyle = '#333333'; ctx.font = (isCompact ? '7px' : '10px') + ' "Microsoft YaHei", sans-serif';
+        ctx.fillStyle = '#222222'; ctx.font = (isCompact ? 'bold 9.5px' : '10px') + ' "Microsoft YaHei", sans-serif';
         ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
         const ySteps = isCompact ? 4 : 5;
         for (let i = 0; i <= ySteps; i++) {
             const v = yMin + (ySpan * i) / ySteps, y = getY(v);
-            ctx.fillText(Number(v.toFixed(2)), pad.left - 3, y);
-            ctx.beginPath(); ctx.moveTo(pad.left - 2.5, y); ctx.lineTo(pad.left, y); ctx.stroke();
+            ctx.fillText(Number(v.toFixed(2)), pad.left - 4, y);
+            ctx.beginPath(); ctx.moveTo(pad.left - 3, y); ctx.lineTo(pad.left, y); ctx.stroke();
         }
 
         cfg.markLinesData.forEach(ml => {
@@ -1145,7 +1205,7 @@
             const y = getY(ml.yAxis);
             if (y < pad.top - 4 || y > pad.top + plotH + 4) return;
             ctx.save(); ctx.strokeStyle = ml.lineStyle.color;
-            ctx.lineWidth = ml.lineStyle.width || (isCompact ? 0.6 : 1);
+            ctx.lineWidth = ml.lineStyle.width || (isCompact ? 0.8 : 1);
             ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + plotW, y); ctx.stroke(); ctx.restore();
         });
 
@@ -1153,7 +1213,7 @@
         cfg.chartData.forEach((v, i) => { if (v !== null && v !== undefined && !isNaN(v)) validPoints.push({ idx: i, x: getX(i), y: getY(v), val: v }); });
 
         if (validPoints.length === 0) {
-            ctx.fillStyle = '#888888'; ctx.font = 'bold ' + (isCompact ? '10px' : '14px') + ' "Microsoft YaHei", sans-serif';
+            ctx.fillStyle = '#888888'; ctx.font = 'bold ' + (isCompact ? '12px' : '14px') + ' "Microsoft YaHei", sans-serif';
             ctx.textAlign = 'center'; ctx.fillText('No Measured Data in Selected Time Window', pad.left + plotW / 2, pad.top + plotH / 2);
             return { pad, plotW, plotH, getX, getY, n };
         }
@@ -1167,23 +1227,26 @@
         }
 
         const yAxisBottom = pad.top + plotH;
+        let lastDrawnLabelX = -999;
         for (let i = 0; i < n; i++) {
             const x = getX(i);
-            ctx.strokeStyle = '#888888'; ctx.lineWidth = isCompact ? 0.6 : 1;
-            ctx.beginPath(); ctx.moveTo(x, yAxisBottom); ctx.lineTo(x, yAxisBottom + (isCompact ? 1.5 : 4)); ctx.stroke();
+            ctx.strokeStyle = '#888888'; ctx.lineWidth = isCompact ? 0.8 : 1;
+            ctx.beginPath(); ctx.moveTo(x, yAxisBottom); ctx.lineTo(x, yAxisBottom + (isCompact ? 2.5 : 4)); ctx.stroke();
             const isFirstOrChanged = (i === 0) || (cfg.chartMotherBarcodes[i] !== cfg.chartMotherBarcodes[i - 1]);
-            if (isFirstOrChanged && cfg.chartMotherBarcodes[i] && cfg.chartMotherBarcodes[i] !== 'No Data') {
-                ctx.beginPath(); ctx.moveTo(x, yAxisBottom); ctx.lineTo(x, yAxisBottom + (isCompact ? 3 : 10)); ctx.stroke();
+            // Prevent overlapping barcode blur on TV by requiring at least 22px horizontal spacing between drawn labels
+            if (isFirstOrChanged && cfg.chartMotherBarcodes[i] && cfg.chartMotherBarcodes[i] !== 'No Data' && (!isCompact || (x - lastDrawnLabelX >= 22))) {
+                lastDrawnLabelX = x;
+                ctx.beginPath(); ctx.moveTo(x, yAxisBottom); ctx.lineTo(x, yAxisBottom + (isCompact ? 5 : 10)); ctx.stroke();
                 const labelStr = isCompact ? formatTVCompactBarcode(cfg.chartMotherBarcodes[i]) : cfg.chartMotherBarcodes[i];
-                ctx.save(); ctx.translate(x, yAxisBottom + (isCompact ? 3.5 : 14));
-                ctx.rotate((isCompact ? -25 : -35) * Math.PI / 180);
-                ctx.fillStyle = isCompact ? '#555555' : '#333333';
-                ctx.font = (isCompact ? 'normal 5.5px' : 'bold 10px') + ' "Microsoft YaHei", sans-serif';
+                ctx.save(); ctx.translate(x, yAxisBottom + (isCompact ? 6 : 14));
+                ctx.rotate((isCompact ? -30 : -35) * Math.PI / 180);
+                ctx.fillStyle = '#111111';
+                ctx.font = (isCompact ? 'bold 9.5px' : 'bold 10px') + ' "Microsoft YaHei", sans-serif';
                 ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.fillText(labelStr, 0, 0); ctx.restore();
             }
         }
 
-        ctx.save(); ctx.strokeStyle = '#6395f9'; ctx.lineWidth = isCompact ? 1.1 : 2;
+        ctx.save(); ctx.strokeStyle = '#6395f9'; ctx.lineWidth = isCompact ? 1.5 : 2;
         ctx.beginPath();
         validPoints.forEach((pt, idx) => {
             if (idx === 0) ctx.moveTo(pt.x, pt.y);
@@ -1191,7 +1254,7 @@
         });
         ctx.stroke();
         ctx.fillStyle = '#6395f9';
-        validPoints.forEach(pt => { ctx.beginPath(); ctx.arc(pt.x, pt.y, isCompact ? 1.5 : 3, 0, Math.PI * 2); ctx.fill(); });
+        validPoints.forEach(pt => { ctx.beginPath(); ctx.arc(pt.x, pt.y, isCompact ? 2.2 : 3, 0, Math.PI * 2); ctx.fill(); });
         ctx.restore();
         return { pad, plotW, plotH, getX, getY, n };
     }
@@ -1203,16 +1266,20 @@
         container.appendChild(canvas); container.appendChild(tooltip);
 
         function paintCanvas() {
-            const dpr = window.devicePixelRatio || 1, rect = container.getBoundingClientRect();
-            const width = Math.max(rect.width || container.clientWidth || 400, 150);
-            const height = Math.max(rect.height || container.clientHeight || 180, 100);
+            const dpr = window.devicePixelRatio || 1;
+            const width = Math.max(container.clientWidth || 785, 150);
+            const height = Math.max(container.clientHeight || 215, 100);
             canvas.width = width * dpr; canvas.height = height * dpr;
             canvas.style.width = width + 'px'; canvas.style.height = height + 'px';
             const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
             const geom = paintSPCPlotOnContext(ctx, width, height, cfg);
 
             canvas.onmousemove = function(ev) {
-                const cRect = canvas.getBoundingClientRect(), mx = ev.clientX - cRect.left, my = ev.clientY - cRect.top;
+                const cRect = canvas.getBoundingClientRect();
+                const scaleX = width / (cRect.width || width);
+                const scaleY = height / (cRect.height || height);
+                const mx = (ev.clientX - cRect.left) * scaleX;
+                const my = (ev.clientY - cRect.top) * scaleY;
                 if (!geom || mx < geom.pad.left || mx > geom.pad.left + geom.plotW || my < geom.pad.top || my > geom.pad.top + geom.plotH || geom.n === 0) {
                     tooltip.style.display = 'none'; return;
                 }
@@ -1311,8 +1378,8 @@
         const chartDom = document.getElementById(customDomId);
         if (!chartDom) return;
 
-        const wMajor = isCompactTV ? 1.0 : 2.0;
-        const wMinor = isCompactTV ? 0.6 : 1.0;
+        const wMajor = isCompactTV ? 1.3 : 2.0;
+        const wMinor = isCompactTV ? 0.8 : 1.0;
 
         let markLinesData = [
             { yAxis: lineObj.USL, lineStyle: { color: '#ff8c00', width: wMajor, type: 'solid' } },
@@ -1337,16 +1404,34 @@
 
         if (metaList) metaList.push({ lineObj, typeKey, inspItem: spcConfigs[typeKey].inspItem, dynamicStats, chartDom, chartPayload });
 
+        // Pre-compute non-overlapping Mother Barcode indices for TV mode so 30h of rolls never blur together
+        const allowedTVLabelIndices = new Set();
+        if (isCompactTV) {
+            let uniqueMotherIndices = [];
+            for (let i = 0; i < chartMotherBarcodes.length; i++) {
+                if (i === 0 || chartMotherBarcodes[i] !== chartMotherBarcodes[i - 1]) {
+                    uniqueMotherIndices.push(i);
+                }
+            }
+            const maxLabels = 24; // Crisp, readable spacing across 785px width
+            const step = Math.max(1, Math.ceil(uniqueMotherIndices.length / maxLabels));
+            for (let j = 0; j < uniqueMotherIndices.length; j += step) {
+                allowedTVLabelIndices.add(uniqueMotherIndices[j]);
+            }
+        }
+
         let renderedWithECharts = false;
         if (typeof echarts !== 'undefined') {
             try {
-                const myChart = echarts.init(chartDom);
+                const myChart = isCompactTV
+                    ? echarts.init(chartDom, null, { width: 785, height: 215 })
+                    : echarts.init(chartDom);
                 let maData = (!isCompactTV && boxStartIndex !== -1 && boxEndIndex !== -1 && chartHoverBarcodes[boxStartIndex] && chartHoverBarcodes[boxEndIndex])
                     ? [[{ xAxis: chartHoverBarcodes[boxStartIndex] }, { xAxis: chartHoverBarcodes[boxEndIndex] }]] : [];
 
                 myChart.setOption({
                     animation: false,
-                    grid: { top: isCompactTV ? 5 : 15, bottom: isCompactTV ? 22 : 90, left: isCompactTV ? 30 : 45, right: isCompactTV ? 6 : 20 },
+                    grid: { top: isCompactTV ? 8 : 15, bottom: isCompactTV ? 42 : 90, left: isCompactTV ? 36 : 45, right: isCompactTV ? 10 : 20 },
                     tooltip: { 
                         trigger: 'axis', animation: false, axisPointer: { type: 'cross', animation: false },
                         formatter: function(params) {
@@ -1360,32 +1445,43 @@
                         { 
                             type: 'category', data: chartHoverBarcodes.length > 0 ? chartHoverBarcodes : ['No Data'], position: 'bottom',
                             axisLabel: { 
-                                rotate: isCompactTV ? 25 : 35,
-                                fontSize: isCompactTV ? 5.5 : 10,
-                                fontWeight: isCompactTV ? 'normal' : 'bold',
-                                color: isCompactTV ? '#555' : '#333',
-                                margin: isCompactTV ? 3 : 15,
+                                rotate: isCompactTV ? 30 : 35,
+                                fontSize: isCompactTV ? 9.5 : 10,
+                                fontWeight: 'bold',
+                                color: '#111',
+                                margin: isCompactTV ? 6 : 15,
                                 align: 'right', 
                                 formatter: (v, i) => v === 'No Data' ? '' : (isCompactTV ? formatTVCompactBarcode(chartMotherBarcodes[i] || v) : (chartMotherBarcodes[i] || v)),
-                                interval: (i) => (chartMotherBarcodes.length === 0 || i === 0) ? true : (chartMotherBarcodes[i] !== chartMotherBarcodes[i - 1])
+                                interval: (i) => {
+                                    if (chartMotherBarcodes.length === 0) return true;
+                                    if (isCompactTV) return allowedTVLabelIndices.has(i);
+                                    return i === 0 ? true : (chartMotherBarcodes[i] !== chartMotherBarcodes[i - 1]);
+                                }
                             }, 
-                            axisTick: { show: true, alignWithLabel: true, length: isCompactTV ? 2.5 : 10, lineStyle: { width: isCompactTV ? 0.6 : 1 }, interval: (i) => (chartMotherBarcodes.length === 0 || i === 0) ? true : (chartMotherBarcodes[i] !== chartMotherBarcodes[i - 1]) },
-                            axisLine: { lineStyle: { color: '#888', width: isCompactTV ? 0.8 : 1 } } 
+                            axisTick: {
+                                show: true, alignWithLabel: true, length: isCompactTV ? 5 : 10,
+                                interval: (i) => {
+                                    if (chartMotherBarcodes.length === 0) return true;
+                                    if (isCompactTV) return allowedTVLabelIndices.has(i);
+                                    return i === 0 ? true : (chartMotherBarcodes[i] !== chartMotherBarcodes[i - 1]);
+                                }
+                            },
+                            axisLine: { lineStyle: { color: '#888', width: 1 } } 
                         },
                         {
                             type: 'category', data: chartHoverBarcodes.length > 0 ? chartHoverBarcodes : ['No Data'], position: 'bottom',
                             axisLabel: { show: false }, axisLine: { show: false },
-                            axisTick: { show: true, interval: 0, alignWithLabel: true, length: isCompactTV ? 1.2 : 4, lineStyle: { color: '#888', width: isCompactTV ? 0.5 : 1 } }
+                            axisTick: { show: true, interval: 0, alignWithLabel: true, length: isCompactTV ? 2.5 : 4, lineStyle: { color: '#888', width: 0.8 } }
                         }
                     ],
                     yAxis: {
                         type: 'value', min: chartYMin, max: chartYMax, splitLine: { show: false },
-                        axisLabel: { fontSize: isCompactTV ? 7 : 10, margin: isCompactTV ? 3 : 8, formatter: v => Number(v.toFixed(2)) },
-                        axisLine: { show: true, lineStyle: { color: '#888', width: isCompactTV ? 0.8 : 1 } }
+                        axisLabel: { fontSize: isCompactTV ? 9.5 : 10, fontWeight: isCompactTV ? 'bold' : 'normal', color: '#222', margin: isCompactTV ? 4 : 8, formatter: v => Number(v.toFixed(2)) },
+                        axisLine: { show: true, lineStyle: { color: '#888', width: 1 } }
                     },
                     series: [{
                         name: 'Data', type: 'line', smooth: 0.3, data: chartData.length > 0 ? chartData : [null],
-                        symbol: 'circle', symbolSize: isCompactTV ? 2 : 5, itemStyle: { color: '#6395f9' }, lineStyle: { color: '#6395f9', width: isCompactTV ? 1.1 : 2 },
+                        symbol: 'circle', symbolSize: isCompactTV ? 3.5 : 5, itemStyle: { color: '#6395f9' }, lineStyle: { color: '#6395f9', width: isCompactTV ? 1.6 : 2 },
                         markArea: { silent: true, itemStyle: { color: 'transparent', borderWidth: 2, borderColor: 'red' }, data: maData },
                         markLine: { symbol: ['none', 'none'], label: { show: false }, silent: true, data: markLinesData }
                     }]
@@ -1430,8 +1526,9 @@
         if (modelsToVerify.length > 0) queueUnknownModelsForPrompt(modelsToVerify);
     }
 
-    // --- TV STREAM MODE (30-HOUR CONTINUOUS DATA WITHOUT RED BOX) ---
+    // --- TV STREAM MODE (LOCKED 1920x1080 VIRTUAL STAGE + 30H WINDOW) ---
     function renderTVStreamCharts() {
+        applyTVStageTransform();
         tvChartInstances.forEach(inst => { try { inst.dispose(); } catch(e){} });
         tvChartInstances = [];
         const colAir = document.getElementById('tvColAir'), colThick = document.getElementById('tvColThick');
@@ -1453,13 +1550,17 @@
             buildAndMountSingleSPCChart(colAir, line, 'air', highlightStart, highlightEnd, 'tv', tvChartInstances, null, null);
             buildAndMountSingleSPCChart(colThick, line, 'thick', highlightStart, highlightEnd, 'tv', tvChartInstances, null, null);
         });
-        [60, 200, 450].forEach(d => setTimeout(() => tvChartInstances.forEach(inst => inst && inst.resize()), d));
+        [60, 200, 450].forEach(d => setTimeout(() => {
+            applyTVStageTransform();
+            tvChartInstances.forEach(inst => inst && inst.resize());
+        }, d));
     }
 
     function enterTVStreamMode() {
         if (isTVMode) return;
         isTVMode = true; isAutoFollowLatest = true;
         document.body.classList.add('tv-mode-active');
+        applyTVStageTransform();
         try { history.pushState({ tvStreamMode: true }, '', '#tv-stream'); } catch (e) {}
         const docEl = document.documentElement;
         try {
@@ -1494,11 +1595,17 @@
     window.addEventListener('popstate', () => { if (isTVMode) exitTVStreamMode(true); });
     document.addEventListener('fullscreenchange', () => {
         if (!document.fullscreenElement && isTVMode) exitTVStreamMode();
-        else if (document.fullscreenElement && isTVMode) setTimeout(() => tvChartInstances.forEach(inst => inst && inst.resize()), 100);
+        else if (document.fullscreenElement && isTVMode) setTimeout(() => {
+            applyTVStageTransform();
+            tvChartInstances.forEach(inst => inst && inst.resize());
+        }, 100);
     });
     window.addEventListener('resize', () => {
         chartInstances.forEach(inst => inst && inst.resize());
-        if (isTVMode) tvChartInstances.forEach(inst => inst && inst.resize());
+        if (isTVMode) {
+            applyTVStageTransform();
+            tvChartInstances.forEach(inst => inst && inst.resize());
+        }
     });
     document.querySelectorAll('#lineToggles input').forEach(cb => cb.addEventListener('change', renderCharts));
 
