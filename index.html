@@ -79,7 +79,7 @@
         /* TV STREAM MODE */
         #tvStreamOverlay {
             display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: #eef1f5; z-index: 9500; flex-direction: column; padding: 4px 6px;
+            background: #eef1f5; z-index: 9500; flex-direction: column; padding: 3px 6px;
             box-sizing: border-box; overflow: hidden; width: 100vw; height: 100vh;
         }
         body.tv-mode-active { overflow: hidden; }
@@ -87,38 +87,40 @@
 
         .tv-top-bar {
             display: flex; justify-content: space-between; align-items: center;
-            background: #1a237e; color: #ffffff; padding: 3px 10px; border-radius: 4px;
-            margin-bottom: 4px; height: 26px; box-sizing: border-box; flex-shrink: 0;
+            background: #1a237e; color: #ffffff; padding: 2px 10px; border-radius: 4px;
+            margin-bottom: 3px; height: 24px; box-sizing: border-box; flex-shrink: 0;
             box-shadow: 0 1px 4px rgba(0,0,0,0.15); transition: background-color 0.4s ease;
         }
         .tv-top-bar.sync-flash { background: #1b5e20; }
-        .tv-top-title { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
-        .tv-top-meta { font-size: 11px; color: #e8eaf6; display: flex; align-items: center; gap: 10px; }
-        .tv-exit-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.4); color: #fff; padding: 1px 8px; border-radius: 3px; cursor: pointer; font-size: 11px; font-weight: 600; }
+        .tv-top-title { font-size: 12.5px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        .tv-top-meta { font-size: 10.5px; color: #e8eaf6; display: flex; align-items: center; gap: 10px; }
+        .tv-exit-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.4); color: #fff; padding: 1px 8px; border-radius: 3px; cursor: pointer; font-size: 10.5px; font-weight: 600; }
         .tv-exit-btn:hover { background: rgba(255,255,255,0.28); }
 
-        .tv-split-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; flex: 1 1 auto; min-height: 0; width: 100%; height: calc(100vh - 38px); }
+        .tv-split-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; flex: 1 1 auto; min-height: 0; width: 100%; height: calc(100vh - 33px); }
         .tv-col { display: flex; flex-direction: column; gap: 3px; min-height: 0; height: 100%; overflow: hidden; }
-        .tv-col-header { text-align: center; font-weight: 700; font-size: 11.5px; padding: 2px 6px; border-radius: 3px; color: #fff; flex-shrink: 0; height: 20px; line-height: 16px; box-sizing: border-box; }
+        .tv-col-header { text-align: center; font-weight: 700; font-size: 11px; padding: 1px 6px; border-radius: 3px; color: #fff; flex-shrink: 0; height: 18px; line-height: 16px; box-sizing: border-box; }
         .tv-col-header.air-hdr { background: #1565c0; }
         .tv-col-header.thick-hdr { background: #2e7d32; }
         .tv-cards-stack { display: grid; grid-template-rows: repeat(4, minmax(0, 1fr)); gap: 4px; flex: 1 1 auto; min-height: 0; height: 100%; overflow: hidden; }
 
         .tv-col .spc-card { margin-bottom: 0; min-height: 0; height: 100%; width: 100%; display: flex; flex-direction: column; box-sizing: border-box; }
-        .tv-col .spc-title { font-size: 11px; padding: 2px 6px; height: 19px; line-height: 15px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; }
-        .tv-col .spc-body { flex: 1 1 auto; height: calc(100% - 19px) !important; min-height: 0; width: 100%; display: flex; flex-direction: row; overflow: hidden; }
-        .tv-col .spc-echarts-container { flex: 1 1 auto; width: calc(100% - 108px) !important; height: 100% !important; min-width: 100px; min-height: 0; }
-        .tv-col .spc-info-panel { width: 108px; min-width: 108px; height: 100% !important; padding: 2px 4px; font-size: 8px; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; }
-        .tv-col .spc-legend { gap: 0px; padding-bottom: 1px; margin-bottom: 1px; line-height: 1.05; }
-        .tv-col .spc-legend-item { gap: 3px; font-size: 7.8px; }
-        .tv-col .spc-line-swatch { width: 8px; }
-        .tv-col .spc-stats-container { gap: 1px; justify-content: flex-end; }
+        .tv-col .spc-title { font-size: 10.5px; padding: 1px 6px; height: 17px; line-height: 15px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; }
+        .tv-col .spc-body { flex: 1 1 auto; height: calc(100% - 17px) !important; min-height: 0; width: 100%; display: flex; flex-direction: row; overflow: hidden; }
+        .tv-col .spc-echarts-container { flex: 1 1 auto; width: calc(100% - 128px) !important; height: 100% !important; min-width: 100px; min-height: 0; }
+        
+        /* Enlarged Sigma Details & Stats Panel in TV Mode to fill available vertical space */
+        .tv-col .spc-info-panel { width: 128px; min-width: 128px; height: 100% !important; padding: 3px 5px; font-size: 9.5px; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; }
+        .tv-col .spc-legend { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: space-evenly; gap: 0px; padding-bottom: 2px; margin-bottom: 2px; line-height: 1.15; }
+        .tv-col .spc-legend-item { gap: 4px; font-size: 9.5px; font-weight: 600; color: #111; }
+        .tv-col .spc-line-swatch { width: 11px; }
+        .tv-col .spc-stats-container { flex: 0 0 auto; gap: 1.5px; justify-content: flex-end; }
         .tv-col .spc-info-box { flex-direction: row; justify-content: space-between; align-items: center; gap: 2px; }
-        .tv-col .spc-info-box-label { font-size: 7.8px; }
-        .tv-col .spc-info-box-value { font-size: 8.2px; padding: 0px 2px; }
-        .tv-col .cpk-highlight-box { flex-direction: row !important; justify-content: space-between !important; padding: 1px 4px !important; margin-top: 1px !important; border-width: 1px !important; }
-        .tv-col .cpk-highlight-box .spc-info-box-label { font-size: 9px !important; }
-        .tv-col .cpk-highlight-box .spc-info-box-value { font-size: 10.5px !important; }
+        .tv-col .spc-info-box-label { font-size: 8.5px; font-weight: 600; }
+        .tv-col .spc-info-box-value { font-size: 9px; padding: 0px 3px; font-weight: 600; }
+        .tv-col .cpk-highlight-box { flex-direction: row !important; justify-content: space-between !important; padding: 1.5px 5px !important; margin-top: 1px !important; border-width: 1.5px !important; }
+        .tv-col .cpk-highlight-box .spc-info-box-label { font-size: 10px !important; }
+        .tv-col .cpk-highlight-box .spc-info-box-value { font-size: 11.5px !important; }
 
         /* Modals */
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.55); display: none; align-items: center; justify-content: center; z-index: 9999; padding: 15px; }
@@ -223,8 +225,8 @@
     <div id="tvTopBar" class="tv-top-bar">
         <div class="tv-top-title">
             <span>📺 102 Wet Process — Live SPC TV Stream (W1–W4)</span>
-            <span id="tvTimeframeBadge" style="background: rgba(255,255,255,0.18); padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600;"></span>
-            <span id="tvSyncBadge" style="background: rgba(76,175,80,0.35); border: 1px solid #81c784; padding: 1px 8px; border-radius: 10px; font-size: 10.5px; font-family: monospace;">🟢 Live Auto-Sync</span>
+            <span id="tvTimeframeBadge" style="background: rgba(255,255,255,0.18); padding: 1px 8px; border-radius: 10px; font-size: 10.5px; font-weight: 600;"></span>
+            <span id="tvSyncBadge" style="background: rgba(76,175,80,0.35); border: 1px solid #81c784; padding: 1px 8px; border-radius: 10px; font-size: 10px; font-family: monospace;">🟢 Live Auto-Sync</span>
         </div>
         <div class="tv-top-meta">
             <span>Press <b>Esc</b> (PC) or <b>Back</b> (TV Remote) to exit</span>
@@ -233,11 +235,11 @@
     </div>
     <div class="tv-split-grid">
         <div class="tv-col">
-            <div class="tv-col-header air-hdr">💨 W1 – W4 | SF005 Air Permeability (透气率)</div>
+            <div class="tv-col-header air-hdr">💨 W1 – W4 | SF005 Air Permeability (透气率 — 30h Window)</div>
             <div id="tvColAir" class="tv-cards-stack"></div>
         </div>
         <div class="tv-col">
-            <div class="tv-col-header thick-hdr">📏 W1 – W4 | SF002 Thickness (厚度)</div>
+            <div class="tv-col-header thick-hdr">📏 W1 – W4 | SF002 Thickness (厚度 — 30h Window)</div>
             <div id="tvColThick" class="tv-cards-stack"></div>
         </div>
     </div>
@@ -799,7 +801,11 @@
 
     function formatTVCompactBarcode(mb) {
         if (!mb || mb === 'No Data') return '';
-        return String(mb).replace(/^WDW\d/i, '');
+        let s = String(mb).replace(/^WDW\d/i, '');
+        if (/^\d{6}[A-Za-z]+\d+$/.test(s)) {
+            s = s.slice(2);
+        }
+        return s;
     }
 
     function calculateSPCStats(dataArray, usl, lsl) {
@@ -1088,7 +1094,7 @@
                 <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-2sig);height:1px;"></span> +2σ: ${(dynamicStats.mean + 2*dynamicStats.stdDev).toFixed(4)}</div>
                 <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-1sig);height:1px;"></span> +σ: ${(dynamicStats.mean + 1*dynamicStats.stdDev).toFixed(4)}</div>
                 <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-cl);height:2px;"></span> 中心值: ${dynamicStats.mean.toFixed(4)}</div>
-                <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-data);height:1.5px;position:relative;"><span style="position:absolute;top:-2.5px;left:7px;width:6px;height:6px;background:var(--c-data);border-radius:50%;"></span></span> 平均值</div>
+                <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-data);height:1.5px;position:relative;"><span style="position:absolute;top:-2.5px;left:4px;width:5px;height:5px;background:var(--c-data);border-radius:50%;"></span></span> 平均值</div>
                 <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-1sig);height:1px;"></span> -σ: ${(dynamicStats.mean - 1*dynamicStats.stdDev).toFixed(4)}</div>
                 <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-2sig);height:1px;"></span> -2σ: ${(dynamicStats.mean - 2*dynamicStats.stdDev).toFixed(4)}</div>
                 <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-ucl);height:2px;"></span> -3σ: ${(dynamicStats.mean - 3*dynamicStats.stdDev).toFixed(4)}</div>
@@ -1111,11 +1117,11 @@
         </div>`;
     }
 
-    // --- NATIVE HTML5 CANVAS SPC GRAPH ENGINE (PROPORTIONAL SCALING FOR TV & PC) ---
+    // --- NATIVE HTML5 CANVAS SPC GRAPH ENGINE ---
     function paintSPCPlotOnContext(ctx, width, height, cfg) {
         ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height);
         const isCompact = height < 260;
-        const pad = { top: isCompact ? 6 : 18, right: isCompact ? 8 : 22, bottom: isCompact ? 38 : 92, left: isCompact ? 32 : 48 };
+        const pad = { top: isCompact ? 5 : 18, right: isCompact ? 6 : 22, bottom: isCompact ? 22 : 92, left: isCompact ? 30 : 48 };
         const plotW = Math.max(50, width - pad.left - pad.right), plotH = Math.max(40, height - pad.top - pad.bottom);
         const yMin = cfg.chartYMin, yMax = cfg.chartYMax, ySpan = (yMax - yMin) > 0 ? (yMax - yMin) : 10;
         const getY = (val) => pad.top + plotH - ((val - yMin) / ySpan) * plotH;
@@ -1125,7 +1131,7 @@
         ctx.strokeStyle = '#888888'; ctx.lineWidth = isCompact ? 0.8 : 1;
         ctx.beginPath(); ctx.moveTo(pad.left, pad.top); ctx.lineTo(pad.left, pad.top + plotH); ctx.lineTo(pad.left + plotW, pad.top + plotH); ctx.stroke();
 
-        ctx.fillStyle = '#333333'; ctx.font = (isCompact ? '7.5px' : '10px') + ' "Microsoft YaHei", sans-serif';
+        ctx.fillStyle = '#333333'; ctx.font = (isCompact ? '7px' : '10px') + ' "Microsoft YaHei", sans-serif';
         ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
         const ySteps = isCompact ? 4 : 5;
         for (let i = 0; i <= ySteps; i++) {
@@ -1148,30 +1154,31 @@
 
         if (validPoints.length === 0) {
             ctx.fillStyle = '#888888'; ctx.font = 'bold ' + (isCompact ? '10px' : '14px') + ' "Microsoft YaHei", sans-serif';
-            ctx.textAlign = 'center'; ctx.fillText('No Measured Data in Selected 24-Hour Window', pad.left + plotW / 2, pad.top + plotH / 2);
+            ctx.textAlign = 'center'; ctx.fillText('No Measured Data in Selected Time Window', pad.left + plotW / 2, pad.top + plotH / 2);
             return { pad, plotW, plotH, getX, getY, n };
         }
 
-        if (cfg.boxStartIndex !== -1 && cfg.boxEndIndex !== -1) {
+        if (!isCompact && cfg.boxStartIndex !== -1 && cfg.boxEndIndex !== -1) {
             const stepW = n > 0 ? (plotW / n) : 20;
             const xStart = Math.max(pad.left, getX(cfg.boxStartIndex) - Math.min(stepW * 0.4, 8));
             const xEnd = Math.min(pad.left + plotW, getX(cfg.boxEndIndex) + Math.min(stepW * 0.4, 8));
-            ctx.save(); ctx.strokeStyle = '#ff0000'; ctx.lineWidth = isCompact ? 1.2 : 2;
+            ctx.save(); ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 2;
             ctx.strokeRect(xStart, pad.top, Math.max(4, xEnd - xStart), plotH); ctx.restore();
         }
 
         const yAxisBottom = pad.top + plotH;
         for (let i = 0; i < n; i++) {
             const x = getX(i);
-            ctx.strokeStyle = '#888888'; ctx.lineWidth = isCompact ? 0.7 : 1;
-            ctx.beginPath(); ctx.moveTo(x, yAxisBottom); ctx.lineTo(x, yAxisBottom + (isCompact ? 2 : 4)); ctx.stroke();
+            ctx.strokeStyle = '#888888'; ctx.lineWidth = isCompact ? 0.6 : 1;
+            ctx.beginPath(); ctx.moveTo(x, yAxisBottom); ctx.lineTo(x, yAxisBottom + (isCompact ? 1.5 : 4)); ctx.stroke();
             const isFirstOrChanged = (i === 0) || (cfg.chartMotherBarcodes[i] !== cfg.chartMotherBarcodes[i - 1]);
             if (isFirstOrChanged && cfg.chartMotherBarcodes[i] && cfg.chartMotherBarcodes[i] !== 'No Data') {
-                ctx.beginPath(); ctx.moveTo(x, yAxisBottom); ctx.lineTo(x, yAxisBottom + (isCompact ? 4 : 10)); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(x, yAxisBottom); ctx.lineTo(x, yAxisBottom + (isCompact ? 3 : 10)); ctx.stroke();
                 const labelStr = isCompact ? formatTVCompactBarcode(cfg.chartMotherBarcodes[i]) : cfg.chartMotherBarcodes[i];
-                ctx.save(); ctx.translate(x, yAxisBottom + (isCompact ? 4.5 : 14)); ctx.rotate(-35 * Math.PI / 180);
-                ctx.fillStyle = isCompact ? '#444444' : '#333333';
-                ctx.font = (isCompact ? 'normal 6.5px' : 'bold 10px') + ' "Microsoft YaHei", sans-serif';
+                ctx.save(); ctx.translate(x, yAxisBottom + (isCompact ? 3.5 : 14));
+                ctx.rotate((isCompact ? -25 : -35) * Math.PI / 180);
+                ctx.fillStyle = isCompact ? '#555555' : '#333333';
+                ctx.font = (isCompact ? 'normal 5.5px' : 'bold 10px') + ' "Microsoft YaHei", sans-serif';
                 ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.fillText(labelStr, 0, 0); ctx.restore();
             }
         }
@@ -1184,7 +1191,7 @@
         });
         ctx.stroke();
         ctx.fillStyle = '#6395f9';
-        validPoints.forEach(pt => { ctx.beginPath(); ctx.arc(pt.x, pt.y, isCompact ? 1.6 : 3, 0, Math.PI * 2); ctx.fill(); });
+        validPoints.forEach(pt => { ctx.beginPath(); ctx.arc(pt.x, pt.y, isCompact ? 1.5 : 3, 0, Math.PI * 2); ctx.fill(); });
         ctx.restore();
         return { pad, plotW, plotH, getX, getY, n };
     }
@@ -1230,8 +1237,9 @@
     }
 
     function buildAndMountSingleSPCChart(targetWrapper, line, typeKey, highlightStart, highlightEnd, domPrefix, instancesList, metaList, modelsToVerify) {
-        const displayStartTimeMs = highlightEnd.getTime() - (24 * 60 * 60 * 1000), displayEndTimeMs = highlightEnd.getTime();
         const isCompactTV = (domPrefix === 'tv');
+        const windowHours = isCompactTV ? 30 : 24;
+        const displayStartTimeMs = highlightEnd.getTime() - (windowHours * 60 * 60 * 1000), displayEndTimeMs = highlightEnd.getTime();
         const formatDate = (d) => (!d || isNaN(d.getTime())) ? '' : `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 
         const baseLine = getLineBaseConfig(line, typeKey);
@@ -1289,10 +1297,13 @@
         const lineObj = { id: line, name: baseLine.name, material: displayModelTitle, USL: isNaN(activeUSL) ? spcConfigs[typeKey].defaultUSL : activeUSL, LSL: isNaN(activeLSL) ? spcConfigs[typeKey].defaultLSL : activeLSL };
         let dynamicStats = calculateSPCStats(chartData, lineObj.USL, lineObj.LSL);
 
-        let boxStartIndex = -1, boxEndIndex = -1, hlStartMs = highlightStart.getTime(), hlEndMs = highlightEnd.getTime();
-        for(let i=0; i<chartTimeMap.length; i++) {
-            let tMs = chartTimeMap[i].getTime();
-            if (tMs >= hlStartMs && tMs <= hlEndMs) { if (boxStartIndex === -1) boxStartIndex = i; boxEndIndex = i; }
+        let boxStartIndex = -1, boxEndIndex = -1;
+        if (!isCompactTV) {
+            let hlStartMs = highlightStart.getTime(), hlEndMs = highlightEnd.getTime();
+            for(let i=0; i<chartTimeMap.length; i++) {
+                let tMs = chartTimeMap[i].getTime();
+                if (tMs >= hlStartMs && tMs <= hlEndMs) { if (boxStartIndex === -1) boxStartIndex = i; boxEndIndex = i; }
+            }
         }
 
         const customDomId = `${domPrefix}_chart_${typeKey}_${lineObj.id}`;
@@ -1300,9 +1311,8 @@
         const chartDom = document.getElementById(customDomId);
         if (!chartDom) return;
 
-        // PROPORTIONAL LINE WIDTHS: Thinner, crisp sub-pixel lines in TV mode so they never stack into thick blocks
-        const wMajor = isCompactTV ? 1.0 : 2.0;   // USL, LSL, +3σ, -3σ, CL
-        const wMinor = isCompactTV ? 0.6 : 1.0;   // +2σ, -2σ, +1σ, -1σ
+        const wMajor = isCompactTV ? 1.0 : 2.0;
+        const wMinor = isCompactTV ? 0.6 : 1.0;
 
         let markLinesData = [
             { yAxis: lineObj.USL, lineStyle: { color: '#ff8c00', width: wMajor, type: 'solid' } },
@@ -1331,12 +1341,12 @@
         if (typeof echarts !== 'undefined') {
             try {
                 const myChart = echarts.init(chartDom);
-                let maData = (boxStartIndex !== -1 && boxEndIndex !== -1 && chartHoverBarcodes[boxStartIndex] && chartHoverBarcodes[boxEndIndex])
+                let maData = (!isCompactTV && boxStartIndex !== -1 && boxEndIndex !== -1 && chartHoverBarcodes[boxStartIndex] && chartHoverBarcodes[boxEndIndex])
                     ? [[{ xAxis: chartHoverBarcodes[boxStartIndex] }, { xAxis: chartHoverBarcodes[boxEndIndex] }]] : [];
 
                 myChart.setOption({
                     animation: false,
-                    grid: { top: isCompactTV ? 6 : 15, bottom: isCompactTV ? 38 : 90, left: isCompactTV ? 32 : 45, right: isCompactTV ? 8 : 20 },
+                    grid: { top: isCompactTV ? 5 : 15, bottom: isCompactTV ? 22 : 90, left: isCompactTV ? 30 : 45, right: isCompactTV ? 6 : 20 },
                     tooltip: { 
                         trigger: 'axis', animation: false, axisPointer: { type: 'cross', animation: false },
                         formatter: function(params) {
@@ -1350,33 +1360,33 @@
                         { 
                             type: 'category', data: chartHoverBarcodes.length > 0 ? chartHoverBarcodes : ['No Data'], position: 'bottom',
                             axisLabel: { 
-                                rotate: 35,
-                                fontSize: isCompactTV ? 6.5 : 10,
+                                rotate: isCompactTV ? 25 : 35,
+                                fontSize: isCompactTV ? 5.5 : 10,
                                 fontWeight: isCompactTV ? 'normal' : 'bold',
-                                color: isCompactTV ? '#444' : '#333',
-                                margin: isCompactTV ? 4 : 15,
+                                color: isCompactTV ? '#555' : '#333',
+                                margin: isCompactTV ? 3 : 15,
                                 align: 'right', 
                                 formatter: (v, i) => v === 'No Data' ? '' : (isCompactTV ? formatTVCompactBarcode(chartMotherBarcodes[i] || v) : (chartMotherBarcodes[i] || v)),
                                 interval: (i) => (chartMotherBarcodes.length === 0 || i === 0) ? true : (chartMotherBarcodes[i] !== chartMotherBarcodes[i - 1])
                             }, 
-                            axisTick: { show: true, alignWithLabel: true, length: isCompactTV ? 3.5 : 10, lineStyle: { width: isCompactTV ? 0.7 : 1 }, interval: (i) => (chartMotherBarcodes.length === 0 || i === 0) ? true : (chartMotherBarcodes[i] !== chartMotherBarcodes[i - 1]) },
+                            axisTick: { show: true, alignWithLabel: true, length: isCompactTV ? 2.5 : 10, lineStyle: { width: isCompactTV ? 0.6 : 1 }, interval: (i) => (chartMotherBarcodes.length === 0 || i === 0) ? true : (chartMotherBarcodes[i] !== chartMotherBarcodes[i - 1]) },
                             axisLine: { lineStyle: { color: '#888', width: isCompactTV ? 0.8 : 1 } } 
                         },
                         {
                             type: 'category', data: chartHoverBarcodes.length > 0 ? chartHoverBarcodes : ['No Data'], position: 'bottom',
                             axisLabel: { show: false }, axisLine: { show: false },
-                            axisTick: { show: true, interval: 0, alignWithLabel: true, length: isCompactTV ? 1.8 : 4, lineStyle: { color: '#888', width: isCompactTV ? 0.6 : 1 } }
+                            axisTick: { show: true, interval: 0, alignWithLabel: true, length: isCompactTV ? 1.2 : 4, lineStyle: { color: '#888', width: isCompactTV ? 0.5 : 1 } }
                         }
                     ],
                     yAxis: {
                         type: 'value', min: chartYMin, max: chartYMax, splitLine: { show: false },
-                        axisLabel: { fontSize: isCompactTV ? 7.5 : 10, margin: isCompactTV ? 4 : 8, formatter: v => Number(v.toFixed(2)) },
+                        axisLabel: { fontSize: isCompactTV ? 7 : 10, margin: isCompactTV ? 3 : 8, formatter: v => Number(v.toFixed(2)) },
                         axisLine: { show: true, lineStyle: { color: '#888', width: isCompactTV ? 0.8 : 1 } }
                     },
                     series: [{
                         name: 'Data', type: 'line', smooth: 0.3, data: chartData.length > 0 ? chartData : [null],
-                        symbol: 'circle', symbolSize: isCompactTV ? 2.2 : 5, itemStyle: { color: '#6395f9' }, lineStyle: { color: '#6395f9', width: isCompactTV ? 1.1 : 2 },
-                        markArea: { silent: true, itemStyle: { color: 'transparent', borderWidth: isCompactTV ? 1.2 : 2, borderColor: 'red' }, data: maData },
+                        symbol: 'circle', symbolSize: isCompactTV ? 2 : 5, itemStyle: { color: '#6395f9' }, lineStyle: { color: '#6395f9', width: isCompactTV ? 1.1 : 2 },
+                        markArea: { silent: true, itemStyle: { color: 'transparent', borderWidth: 2, borderColor: 'red' }, data: maData },
                         markLine: { symbol: ['none', 'none'], label: { show: false }, silent: true, data: markLinesData }
                     }]
                 });
@@ -1420,7 +1430,7 @@
         if (modelsToVerify.length > 0) queueUnknownModelsForPrompt(modelsToVerify);
     }
 
-    // --- TV STREAM MODE ---
+    // --- TV STREAM MODE (30-HOUR CONTINUOUS DATA WITHOUT RED BOX) ---
     function renderTVStreamCharts() {
         tvChartInstances.forEach(inst => { try { inst.dispose(); } catch(e){} });
         tvChartInstances = [];
@@ -1433,8 +1443,11 @@
         let highlightStart = new Date(sStr), highlightEnd = new Date(eStr);
         if (isNaN(highlightStart.getTime()) || isNaN(highlightEnd.getTime())) return;
 
+        let tvStart30h = new Date(highlightEnd.getTime() - (30 * 60 * 60 * 1000));
         const badge = document.getElementById('tvTimeframeBadge');
-        if (badge) badge.textContent = `Red Box Shift: ${sStr.replace('T', ' ')}  ➔  ${eStr.replace('T', ' ')}`;
+        if (badge) {
+            badge.textContent = `30-Hour Live Window: ${formatForInput(tvStart30h).replace('T', ' ')}  ➔  ${eStr.replace('T', ' ')}`;
+        }
 
         ['W1', 'W2', 'W3', 'W4'].forEach(line => {
             buildAndMountSingleSPCChart(colAir, line, 'air', highlightStart, highlightEnd, 'tv', tvChartInstances, null, null);
