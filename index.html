@@ -5,36 +5,34 @@
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
     <title>MES SPC Barcode Dashboard (Live Cloud + Offline Engine)</title>
     
-    <!-- Libraries loaded via jsDelivr (Bypassing Cloudflare IT Firewall block) -->
+    <!-- All libraries loaded via jsDelivr (Permitted by Plant IT) -->
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/firebase@8.10.1/firebase-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/firebase@8.10.1/firebase-database.js"></script>
     
     <style>
         :root {
             --bg: #f5f5f5; --surface: #ffffff; --ink: #141413; --ink2: #52514e; 
             --line: #cccccc; --ctrl: #e7e6e1; --active: #2a78d6;
             --font: "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
-            
-            /* SPC Colors */
             --c-usl: #ff8c00; --c-ucl: #ff0000; --c-2sig: #333333; --c-1sig: #888888; 
             --c-cl: #0000ff; --c-data: #6395f9;
         }
         body { background: var(--bg); color: var(--ink); font-family: var(--font); padding: 15px; margin: 0; }
         .wrap { max-width: 1800px; margin: 0 auto; display: flex; flex-direction: column; gap: 15px; }
         
-        /* Top Header Area */
-        header { background: var(--surface); padding: 16px 24px; border: 1px solid var(--line); border-radius: 8px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);}
+        header { background: var(--surface); padding: 16px 24px; border: 1px solid var(--line); border-radius: 8px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: background-color 0.4s ease; }
+        header.sync-flash { background-color: #e8f5e9; }
         .header-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
         h1 { font-size: 22px; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;}
         .cloud-badge { background: #e3f2fd; color: #1976d2; font-size: 11px; padding: 3px 8px; border-radius: 12px; border: 1px solid #bbdefb; }
         .engine-badge { background: #e8f5e9; color: #2e7d32; font-size: 11px; padding: 3px 8px; border-radius: 12px; border: 1px solid #c8e6c9; }
+        .sync-time-badge { background: #f3e5f5; color: #6a1b9a; font-size: 11px; padding: 3px 8px; border-radius: 12px; border: 1px solid #e1bee7; font-family: monospace; }
         .status { margin-top: 4px; font-size: 13px; font-weight: 600; color: var(--ink2); }
         .status.success { color: #17673f; }
         .status.error { color: #d32f2f; }
         
-        /* Controls */
         .controls-row { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; padding-top: 10px; border-top: 1px solid #eee; }
         .btn { background: var(--surface); border: 1px solid var(--ink); padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; }
         .btn:hover { background: #e9e9e9; }
@@ -44,29 +42,26 @@
         .btn-danger:hover { background-color: #ffcdd2; }
         .btn-spec { background-color: #fff8e1; border-color: #f57c00; color: #e65100; }
         .btn-spec:hover { background-color: #ffecb3; }
+        .btn-tv { background-color: #ede7f6; border-color: #5e35b1; color: #4527a0; margin-left: auto; padding: 6px 18px; font-size: 13.5px; box-shadow: 0 1px 3px rgba(94,53,177,0.18); }
+        .btn-tv:hover { background-color: #d1c4e9; }
         
-        /* Checkboxes */
         .seg { display: inline-flex; background: #f0f0f0; border-radius: 6px; padding: 3px; gap: 2px; }
         .seg label { padding: 6px 14px; border-radius: 4px; font-weight: 600; color: var(--ink2); cursor: pointer; font-size: 13px; transition: 0.2s;}
         .seg input { display: none; }
         .seg input:checked + label { background: var(--surface); color: var(--active); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         
-        /* Date Inputs */
         .date-input { padding: 4px 8px; border: 1px solid #aaa; border-radius: 4px; font-family: var(--font); font-size: 13px; }
         .label-bold { font-weight: 600; font-size: 14px; }
 
-        /* SPC Chart Specific Styles */
         .spc-card { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; display: flex; flex-direction: column; overflow: hidden; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .spc-title { text-align: center; font-size: 16px; padding: 12px 10px; font-weight: bold; background-color: #fcfcfc; border-bottom: 1px solid var(--line); color: #111;}
-        
         .spc-body { display: flex; width: 100%; height: 420px; box-sizing: border-box; position: relative; }
-        .spc-echarts-container { flex: 1 1 auto; width: calc(100% - 145px); height: 420px; position: relative; overflow: hidden; background: #ffffff; }
-        .spc-info-panel { width: 145px; min-width: 145px; height: 420px; padding: 8px; border-left: 1px solid var(--line); display: flex; flex-direction: column; font-size: 11px; background-color: #fcfcfc; box-sizing: border-box; flex-shrink: 0; }
+        .spc-echarts-container { flex: 1 1 auto; width: calc(100% - 145px); height: 100%; position: relative; overflow: hidden; background: #ffffff; }
+        .spc-info-panel { width: 145px; min-width: 145px; height: 100%; padding: 8px; border-left: 1px solid var(--line); display: flex; flex-direction: column; font-size: 11px; background-color: #fcfcfc; box-sizing: border-box; flex-shrink: 0; }
         
         .spc-legend { display: flex; flex-direction: column; gap: 2px; padding-bottom: 5px; border-bottom: 1px dashed var(--line); margin-bottom: 5px; }
         .spc-legend-item { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
         .spc-line-swatch { width: 16px; display: inline-block; flex-shrink: 0; }
-        
         .spc-stats-container { display: flex; flex-direction: column; gap: 4px; flex-grow: 1; }
         .spc-info-box { display: flex; flex-direction: column; gap: 2px; }
         .spc-info-box-label { font-weight: 600; font-size: 11px; color: #333; }
@@ -74,28 +69,68 @@
         
         #exportWrapper { background: var(--bg); padding: 10px; margin: -10px; border-radius: 8px;}
 
-        /* Native Offline Tooltip */
         .native-spc-tooltip {
             position: absolute; pointer-events: none; display: none;
             background: rgba(255, 255, 255, 0.96); border: 1px solid #aaa;
             border-radius: 4px; padding: 8px 10px; font-size: 12px; color: #222;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.18); z-index: 100; line-height: 1.45;
-            white-space: nowrap;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.18); z-index: 100; line-height: 1.45; white-space: nowrap;
         }
 
-        /* Modal Styles for Model Spec Manager & Copy Image Fallback */
+        /* TV STREAM MODE */
+        #tvStreamOverlay {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: #eef1f5; z-index: 9500; flex-direction: column; padding: 5px 8px;
+            box-sizing: border-box; overflow: hidden; width: 100vw; height: 100vh;
+        }
+        body.tv-mode-active { overflow: hidden; }
+        body.tv-mode-active #tvStreamOverlay { display: flex; }
+
+        .tv-top-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            background: #1a237e; color: #ffffff; padding: 4px 12px; border-radius: 5px;
+            margin-bottom: 5px; height: 30px; box-sizing: border-box; flex-shrink: 0;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15); transition: background-color 0.4s ease;
+        }
+        .tv-top-bar.sync-flash { background: #1b5e20; }
+        .tv-top-title { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        .tv-top-meta { font-size: 11.5px; color: #e8eaf6; display: flex; align-items: center; gap: 12px; }
+        .tv-exit-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.4); color: #fff; padding: 2px 9px; border-radius: 4px; cursor: pointer; font-size: 11.5px; font-weight: 600; }
+        .tv-exit-btn:hover { background: rgba(255,255,255,0.28); }
+
+        .tv-split-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; flex: 1 1 auto; min-height: 0; width: 100%; height: calc(100vh - 45px); }
+        .tv-col { display: flex; flex-direction: column; gap: 4px; min-height: 0; height: 100%; overflow: hidden; }
+        .tv-col-header { text-align: center; font-weight: 700; font-size: 12px; padding: 3px 8px; border-radius: 4px; color: #fff; flex-shrink: 0; height: 22px; line-height: 16px; box-sizing: border-box; }
+        .tv-col-header.air-hdr { background: #1565c0; }
+        .tv-col-header.thick-hdr { background: #2e7d32; }
+        .tv-cards-stack { display: grid; grid-template-rows: repeat(4, minmax(0, 1fr)); gap: 5px; flex: 1 1 auto; min-height: 0; height: 100%; overflow: hidden; }
+
+        .tv-col .spc-card { margin-bottom: 0; min-height: 0; height: 100%; width: 100%; display: flex; flex-direction: column; box-sizing: border-box; }
+        .tv-col .spc-title { font-size: 11.5px; padding: 3px 6px; height: 21px; line-height: 15px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-sizing: border-box; }
+        .tv-col .spc-body { flex: 1 1 auto; height: calc(100% - 21px) !important; min-height: 0; width: 100%; display: flex; flex-direction: row; overflow: hidden; }
+        .tv-col .spc-echarts-container { flex: 1 1 auto; width: calc(100% - 114px) !important; height: 100% !important; min-width: 100px; min-height: 0; }
+        .tv-col .spc-info-panel { width: 114px; min-width: 114px; height: 100% !important; padding: 2px 4px; font-size: 8.5px; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; }
+        .tv-col .spc-legend { gap: 0px; padding-bottom: 1px; margin-bottom: 1px; line-height: 1.08; }
+        .tv-col .spc-legend-item { gap: 3px; font-size: 8.2px; }
+        .tv-col .spc-line-swatch { width: 9px; }
+        .tv-col .spc-stats-container { gap: 1px; justify-content: flex-end; }
+        .tv-col .spc-info-box { flex-direction: row; justify-content: space-between; align-items: center; gap: 2px; }
+        .tv-col .spc-info-box-label { font-size: 8.2px; }
+        .tv-col .spc-info-box-value { font-size: 8.8px; padding: 0px 3px; }
+        .tv-col .cpk-highlight-box { flex-direction: row !important; justify-content: space-between !important; padding: 1px 5px !important; margin-top: 1px !important; border-width: 1.5px !important; }
+        .tv-col .cpk-highlight-box .spc-info-box-label { font-size: 9.5px !important; }
+        .tv-col .cpk-highlight-box .spc-info-box-value { font-size: 11px !important; }
+
+        /* Modals */
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.55); display: none; align-items: center; justify-content: center; z-index: 9999; padding: 15px; }
         .modal-card { background: var(--surface); border-radius: 8px; width: 100%; max-width: 900px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); overflow: hidden; display: flex; flex-direction: column; max-height: 90vh; }
         .modal-header { padding: 14px 20px; background: #f8f9fa; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
         .modal-header h2 { margin: 0; font-size: 18px; color: var(--ink); display: flex; align-items: center; gap: 8px; }
         .modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: #666; line-height: 1; }
         .modal-body { padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
-        
         .spec-table { width: 100%; border-collapse: collapse; font-size: 13px; }
         .spec-table th, .spec-table td { border: 1px solid #ddd; padding: 8px 10px; text-align: center; }
         .spec-table th { background: #f0f4f8; font-weight: 600; color: #333; }
         .spec-table td.model-col { text-align: left; font-weight: 600; color: #1565c0; }
-        
         .spec-form-box { background: #fff8e1; border: 1px solid #ffe082; border-radius: 6px; padding: 15px; display: flex; flex-direction: column; gap: 12px; }
         .spec-form-title { font-weight: bold; font-size: 14px; color: #e65100; margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center; }
         .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
@@ -115,15 +150,16 @@
 <body>
 
 <div class="wrap">
-    <header>
+    <header id="mainHeader">
         <div class="header-top">
             <div>
                 <h1>
                     MES SPC Barcode Dashboard 
-                    <span class="cloud-badge">☁️ Live Cloud Sync</span>
-                    <span id="engineBadge" class="engine-badge">⚡ Checking Graph Engine...</span>
+                    <span class="cloud-badge">☁️ Dual Cloud Sync (WS + HTTPS)</span>
+                    <span id="engineBadge" class="engine-badge">🟢 Graph Engine Active</span>
+                    <span id="lastSyncBadge" class="sync-time-badge">🕒 Last Sync: --:--:--</span>
                 </h1>
-                <div class="status" id="uploadStatus">Status: Connecting to Firebase Database...</div>
+                <div class="status" id="uploadStatus">Status: Initializing & Pulling Cloud Data...</div>
             </div>
             
             <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end; min-width: 135px;">
@@ -137,7 +173,6 @@
                 📁 Upload MES Export (Excel/CSV)
                 <input type="file" id="mesFileUpload" accept=".xlsx,.xls,.csv" style="display: none;">
             </label>
-            
             <button id="editSpecsBtn" class="btn btn-spec">⚙️ Model Specs</button>
             
             <div class="seg" id="lineToggles" style="margin-left: 5px;">
@@ -159,19 +194,19 @@
                 <button id="delMonthBtn" class="btn btn-danger">📅 Month</button>
                 <button id="delAllBtn" class="btn btn-danger">⚠️ All</button>
             </div>
+
+            <button id="tvStreamBtn" class="btn btn-tv">📺 TV Stream Mode</button>
         </div>
 
         <div class="controls-row" style="background: #fff3e0; padding: 10px; border-radius: 6px; border: 1px solid #ffe0b2; display: flex; align-items: center; flex-wrap: wrap;">
             <span class="label-bold" style="color: #e65100;">🔴 Focus Timeframe (Displays Red Box + 24hrs Before):</span>
-            
             <label class="label-bold" style="margin-left: 10px;">Red Box Start:</label>
-            <input type="datetime-local" id="highlightStart" class="date-input" onchange="renderCharts()">
-            
+            <input type="datetime-local" id="highlightStart" class="date-input" onchange="isAutoFollowLatest = false; renderCharts();">
             <label class="label-bold" style="margin-left: 10px;">Red Box End (Graph Cutoff):</label>
-            <input type="datetime-local" id="highlightEnd" class="date-input" onchange="renderCharts()">
+            <input type="datetime-local" id="highlightEnd" class="date-input" onchange="isAutoFollowLatest = false; renderCharts();">
             
             <div style="margin-left: auto; display: flex; gap: 10px;">
-                <button id="jumpLatestBtn" class="btn" style="background-color: #e8f5e9; border-color: #81c784; color: #2e7d32;">🔄 Jump to Latest</button>
+                <button id="jumpLatestBtn" class="btn" style="background-color: #e8f5e9; border-color: #81c784; color: #2e7d32;">🔄 Jump to Latest (Auto-Follow)</button>
                 <button id="prevShiftBtn" class="btn" style="background-color: #f3e5f5; border-color: #ce93d8; color: #6a1b9a;">⏮️ Prev 6h</button>
                 <button id="nextShiftBtn" class="btn" style="background-color: #e3f2fd; border-color: #90caf9; color: #1565c0;">⏭️ Next 6h</button>
             </div>
@@ -179,8 +214,31 @@
     </header>
 
     <div id="exportWrapper">
-        <div id="spcChartsWrapper" style="display: flex; flex-direction: column; gap: 15px;">
-            <!-- Charts injected here -->
+        <div id="spcChartsWrapper" style="display: flex; flex-direction: column; gap: 15px;"></div>
+    </div>
+</div>
+
+<!-- TV STREAM FULLSCREEN SPLIT OVERLAY -->
+<div id="tvStreamOverlay">
+    <div id="tvTopBar" class="tv-top-bar">
+        <div class="tv-top-title">
+            <span>📺 102 Wet Process — Live SPC TV Stream (W1–W4)</span>
+            <span id="tvTimeframeBadge" style="background: rgba(255,255,255,0.18); padding: 2px 10px; border-radius: 12px; font-size: 11.5px; font-weight: 600;"></span>
+            <span id="tvSyncBadge" style="background: rgba(76,175,80,0.35); border: 1px solid #81c784; padding: 2px 9px; border-radius: 12px; font-size: 11px; font-family: monospace;">🟢 Live Auto-Sync</span>
+        </div>
+        <div class="tv-top-meta">
+            <span>Press <b>Esc</b> (PC) or <b>Back</b> (TV Remote) to exit</span>
+            <button type="button" class="tv-exit-btn" onclick="exitTVStreamMode()">✖ Exit TV</button>
+        </div>
+    </div>
+    <div class="tv-split-grid">
+        <div class="tv-col">
+            <div class="tv-col-header air-hdr">💨 W1 – W4 | SF005 Air Permeability (透气率)</div>
+            <div id="tvColAir" class="tv-cards-stack"></div>
+        </div>
+        <div class="tv-col">
+            <div class="tv-col-header thick-hdr">📏 W1 – W4 | SF002 Thickness (厚度)</div>
+            <div id="tvColThick" class="tv-cards-stack"></div>
         </div>
     </div>
 </div>
@@ -194,7 +252,6 @@
         </div>
         <div class="modal-body">
             <div id="unknownModelBanner" class="alert-banner"></div>
-
             <div>
                 <div style="font-weight: 600; font-size: 13px; margin-bottom: 6px; color: #444;">Current Cloud Models (Click Edit to modify or Delete to remove):</div>
                 <table class="spec-table">
@@ -206,12 +263,9 @@
                             <th style="width: 140px;">Action</th>
                         </tr>
                     </thead>
-                    <tbody id="specTableBody">
-                        <!-- Populated dynamically -->
-                    </tbody>
+                    <tbody id="specTableBody"></tbody>
                 </table>
             </div>
-
             <div class="spec-form-box">
                 <div class="spec-form-title">
                     <span id="formModeTitle">➕ Add New Model Specification</span>
@@ -223,32 +277,18 @@
                         <label>Model Full Name (e.g., 200000627|W/SW509J or SW509K):</label>
                         <input type="text" id="specModelName" placeholder="Enter model name...">
                     </div>
-                    
                     <div class="param-group-box">
                         <div class="param-group-title">📏 SF002 | Thickness (厚度)</div>
                         <div class="param-inputs">
-                            <div class="form-group">
-                                <label>USL (规格上限):</label>
-                                <input type="number" step="any" id="specThickUSL" placeholder="e.g. 9.5">
-                            </div>
-                            <div class="form-group">
-                                <label>LSL (规格下限):</label>
-                                <input type="number" step="any" id="specThickLSL" placeholder="e.g. 7.1">
-                            </div>
+                            <div class="form-group"><label>USL (规格上限):</label><input type="number" step="any" id="specThickUSL" placeholder="e.g. 9.5"></div>
+                            <div class="form-group"><label>LSL (规格下限):</label><input type="number" step="any" id="specThickLSL" placeholder="e.g. 7.1"></div>
                         </div>
                     </div>
-
                     <div class="param-group-box">
                         <div class="param-group-title">💨 SF005 | Air Permeability (透气率)</div>
                         <div class="param-inputs">
-                            <div class="form-group">
-                                <label>USL (规格上限):</label>
-                                <input type="number" step="any" id="specAirUSL" placeholder="e.g. 80">
-                            </div>
-                            <div class="form-group">
-                                <label>LSL (规格下限):</label>
-                                <input type="number" step="any" id="specAirLSL" placeholder="e.g. 30">
-                            </div>
+                            <div class="form-group"><label>USL (规格上限):</label><input type="number" step="any" id="specAirUSL" placeholder="e.g. 80"></div>
+                            <div class="form-group"><label>LSL (规格下限):</label><input type="number" step="any" id="specAirLSL" placeholder="e.g. 30"></div>
                         </div>
                     </div>
                 </div>
@@ -274,7 +314,7 @@
                 <span style="text-decoration: underline;">Right-click the image below and select "Copy image" (复制图片)</span> to paste into WeChat/Teams, or click Download PNG!
             </div>
             <div style="max-height: 62vh; overflow-y: auto; border: 2px solid #ccc; border-radius: 6px; background: #eee; padding: 6px; width: 100%; text-align: center;">
-                <img id="fallbackPreviewImg" src="" alt="SPC Dashboard Snapshot" style="max-width: 100%; height: auto; display: block; margin: 0 auto; box-shadow: 0 2px 8px rgba(0,0,0,0.15);" />
+                <img id="fallbackPreviewImg" src="" alt="SPC Dashboard Snapshot" style="max-width: 100%; height: auto; display: block; margin: 0 auto;" />
             </div>
             <div style="display: flex; gap: 12px; justify-content: flex-end; width: 100%;">
                 <button type="button" class="btn btn-upload" id="modalDownloadPngBtn">💾 Download PNG File</button>
@@ -285,11 +325,12 @@
 </div>
 
 <script>
-    // --- FIREBASE CONFIGURATION (SAFE GUARDED IF OFFLINE) ---
+    // --- DUAL-CHANNEL FIREBASE CONFIG (SDK WEBSOCKET + HTTPS REST FALLBACK) ---
+    const FB_DB_URL = "https://mes-spc-dashboard-default-rtdb.asia-southeast1.firebasedatabase.app";
     const firebaseConfig = {
         apiKey: "AIzaSyD2o2iDihDy0InX06f2JIzJC76rdadV4K4",
         authDomain: "mes-spc-dashboard.firebaseapp.com",
-        databaseURL: "https://mes-spc-dashboard-default-rtdb.asia-southeast1.firebasedatabase.app",
+        databaseURL: FB_DB_URL,
         projectId: "mes-spc-dashboard",
         storageBucket: "mes-spc-dashboard.firebasestorage.app",
         messagingSenderId: "366479322897",
@@ -297,19 +338,86 @@
     };
     
     let database = null;
+    let wsConnected = false;
     try {
         if (typeof firebase !== 'undefined') {
             firebase.initializeApp(firebaseConfig);
             database = firebase.database();
         }
-    } catch (e) {
-        console.warn("Firebase offline or blocked, running in local memory mode:", e);
+    } catch (e) { console.warn("Firebase SDK unavailable, using direct HTTPS REST mode:", e); }
+
+    // Universal Cloud Read/Write Helpers (Works even if Firebase SDK or WebSockets are blocked by IT!)
+    async function cloudWrite(path, dataObj) {
+        let sdkSuccess = false;
+        if (database && wsConnected) {
+            try {
+                await database.ref(path).set(dataObj);
+                sdkSuccess = true;
+            } catch (e) { sdkSuccess = false; }
+        }
+        if (!sdkSuccess) {
+            const res = await fetch(`${FB_DB_URL}/${path}.json`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dataObj)
+            });
+            if (!res.ok) throw new Error("HTTP " + res.status);
+        }
     }
-    // --------------------------------------------------------
+
+    async function cloudDelete(path) {
+        let sdkSuccess = false;
+        if (database && wsConnected) {
+            try {
+                await database.ref(path).remove();
+                sdkSuccess = true;
+            } catch (e) { sdkSuccess = false; }
+        }
+        if (!sdkSuccess) {
+            const res = await fetch(`${FB_DB_URL}/${path}.json`, { method: 'DELETE' });
+            if (!res.ok) throw new Error("HTTP " + res.status);
+        }
+    }
+
+    async function pollCloudViaREST(isInitial = false) {
+        try {
+            const [specsRes, dataRes] = await Promise.all([
+                fetch(`${FB_DB_URL}/mesModelSpecs.json`, { cache: 'no-store' }),
+                fetch(`${FB_DB_URL}/mesGlobalData.json`, { cache: 'no-store' })
+            ]);
+            if (specsRes.ok) {
+                const savedSpecs = await specsRes.json();
+                if (savedSpecs) {
+                    modelSpecDB = { ...defaultModelSpecs, ...savedSpecs };
+                } else if (isInitial) {
+                    cloudWrite('mesModelSpecs', modelSpecDB).catch(() => {});
+                }
+                if (document.getElementById('specModalOverlay').style.display === 'flex') renderSpecTable();
+            }
+            if (dataRes.ok) {
+                const savedData = await dataRes.json();
+                const fp = computeDataFingerprint(savedData);
+                if (isInitial || fp !== lastDataFingerprint) {
+                    applyIncomingCloudData(savedData, wsConnected ? "Live Push" : "HTTPS Cloud Sync");
+                } else {
+                    markSyncTimestamp(false);
+                }
+            }
+        } catch (err) {
+            if (isInitial && !wsConnected) {
+                const statusEl = document.getElementById('uploadStatus');
+                statusEl.textContent = "⚠️ Status: Cloud unreachable on this network. Running in Local Mode (Upload Excel file to view graphs).";
+            }
+        }
+    }
 
     let globalData = { W1: [], W2: [], W3: [], W4: [], W5: [], W6: [] };
     let chartInstances = [];
-    let renderedCardsMeta = []; // Stores exact data for 100% Native Image Stitcher
+    let tvChartInstances = [];
+    let isTVMode = false;
+    let isAutoFollowLatest = true;
+    let lastDataFingerprint = "";
+    let renderedCardsMeta = [];
     let pendingUnknownModels = [];
 
     const defaultModelSpecs = {
@@ -321,8 +429,7 @@
 
     const spcConfigs = {
         air: {
-            inspItem: "SF005|Air Permeability",
-            defaultUSL: 80, defaultLSL: 30,
+            inspItem: "SF005|Air Permeability", defaultUSL: 80, defaultLSL: 30,
             lines: [
                 { id: "W1", name: "W1|102", defaultModel: "200000627|W/SW509J" },
                 { id: "W2", name: "W2|102", defaultModel: "200000627|W/SW509J" },
@@ -331,8 +438,7 @@
             ]
         },
         thick: {
-            inspItem: "SF002|Thickness",
-            defaultUSL: 9.5, defaultLSL: 7.1,
+            inspItem: "SF002|Thickness", defaultUSL: 9.5, defaultLSL: 7.1,
             lines: [
                 { id: "W1", name: "W1|102", defaultModel: "200000627|W/SW509J" },
                 { id: "W2", name: "W2|102", defaultModel: "200000627|W/SW509J" },
@@ -356,10 +462,80 @@
         }
     }
 
+    function markSyncTimestamp(isNewPush = false) {
+        const now = new Date();
+        const pad = n => String(n).padStart(2, '0');
+        const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+        const mainBadge = document.getElementById('lastSyncBadge');
+        if (mainBadge) mainBadge.textContent = `🕒 Last Sync: ${timeStr}`;
+        const tvBadge = document.getElementById('tvSyncBadge');
+        if (tvBadge) tvBadge.textContent = `🟢 Auto-Synced: ${timeStr}`;
+        if (isNewPush) {
+            const hdr = document.getElementById('mainHeader');
+            const tvHdr = document.getElementById('tvTopBar');
+            if (hdr) { hdr.classList.add('sync-flash'); setTimeout(() => hdr.classList.remove('sync-flash'), 900); }
+            if (tvHdr) { tvHdr.classList.add('sync-flash'); setTimeout(() => tvHdr.classList.remove('sync-flash'), 900); }
+        }
+    }
+
+    function computeDataFingerprint(dataObj) {
+        if (!dataObj) return "empty";
+        let total = 0, maxT = 0;
+        ['W1', 'W2', 'W3', 'W4'].forEach(l => {
+            const arr = dataObj[l] || [];
+            const list = Array.isArray(arr) ? arr : Object.values(arr);
+            total += list.length;
+            list.forEach(item => {
+                if (item && item.time) {
+                    const t = typeof item.time === 'string' ? new Date(item.time).getTime() : Number(item.time);
+                    if (t > maxT) maxT = t;
+                }
+            });
+        });
+        return `${total}_${maxT}`;
+    }
+
+    function applyIncomingCloudData(savedData, sourceLabel = "Live Sync") {
+        const statusEl = document.getElementById('uploadStatus');
+        if (savedData) {
+            const newFp = computeDataFingerprint(savedData);
+            const isChanged = (newFp !== lastDataFingerprint && lastDataFingerprint !== "");
+            lastDataFingerprint = newFp;
+
+            ['W1', 'W2', 'W3', 'W4', 'W5', 'W6'].forEach(line => {
+                let ld = savedData[line] || [];
+                if (!Array.isArray(ld)) ld = Object.values(ld); 
+                globalData[line] = ld.filter(item => item && item.barcode);
+                globalData[line].forEach(item => {
+                    if (typeof item.time === 'string') item.time = new Date(item.time).getTime();
+                    if (item.airValue !== undefined && item.airValue !== null) item.airValue = Number(item.airValue);
+                    if (item.thickValue !== undefined && item.thickValue !== null) item.thickValue = Number(item.thickValue);
+                });
+                globalData[line].sort((a,b) => a.time - b.time);
+            });
+
+            markSyncTimestamp(isChanged);
+            statusEl.textContent = `✅ Status: Live cloud data synced (${sourceLabel}). Auto-refreshing whenever new data is uploaded...`;
+            statusEl.className = "status success";
+
+            if (isAutoFollowLatest || isTVMode || !document.getElementById('highlightStart').value) {
+                snapToLatest();
+            } else {
+                renderCharts();
+            }
+        } else {
+            lastDataFingerprint = "empty";
+            globalData = { W1: [], W2: [], W3: [], W4: [], W5: [], W6: [] };
+            markSyncTimestamp(false);
+            snapToLatest();
+            statusEl.textContent = "Status: Cloud Database is empty. Waiting for Excel Data Upload...";
+            statusEl.className = "status";
+        }
+    }
+
     function getNormalizedModelKey(rawModelStr) {
         if (!rawModelStr) return null;
         let s = String(rawModelStr).trim().toUpperCase();
-        
         for (let k in modelSpecDB) {
             if (!modelSpecDB[k]) continue;
             let full = (modelSpecDB[k].fullName || "").toUpperCase();
@@ -384,13 +560,11 @@
         if (!rawModelStr) return "";
         let s = String(rawModelStr).trim();
         let key = getNormalizedModelKey(s);
-        if (key && modelSpecDB[key] && modelSpecDB[key].fullName) {
-            return modelSpecDB[key].fullName;
-        }
+        if (key && modelSpecDB[key] && modelSpecDB[key].fullName) return modelSpecDB[key].fullName;
         return s;
     }
 
-    // --- INTERACTIVE MODEL SPEC MANAGER FUNCTIONS ---
+    // --- MODEL SPEC MANAGER ---
     function renderSpecTable() {
         const tbody = document.getElementById('specTableBody');
         tbody.innerHTML = '';
@@ -407,7 +581,6 @@
             const tUSL = (m.thick && m.thick.USL !== undefined) ? m.thick.USL : '-';
             const aLSL = (m.air && m.air.LSL !== undefined) ? m.air.LSL : '-';
             const aUSL = (m.air && m.air.USL !== undefined) ? m.air.USL : '-';
-
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td class="model-col">${dispName}</td>
@@ -416,8 +589,7 @@
                 <td>
                     <button type="button" class="btn-sm edit" onclick="loadModelIntoForm('${key}')">✏️ Edit</button>
                     <button type="button" class="btn-sm del" onclick="deleteModelSpec('${key}')">🗑️ Delete</button>
-                </td>
-            `;
+                </td>`;
             tbody.appendChild(tr);
         });
     }
@@ -431,7 +603,6 @@
         } else {
             banner.style.display = 'none';
         }
-
         if (prefillModelName) {
             let key = getNormalizedModelKey(prefillModelName);
             if (modelSpecDB[key] && modelSpecDB[key].air && modelSpecDB[key].thick) {
@@ -483,10 +654,7 @@
         const aUSL = parseFloat(document.getElementById('specAirUSL').value);
         const aLSL = parseFloat(document.getElementById('specAirLSL').value);
 
-        if (!nameInput) {
-            alert("❌ Please enter a Model Name.");
-            return;
-        }
+        if (!nameInput) { alert("❌ Please enter a Model Name."); return; }
         if (isNaN(tUSL) || isNaN(tLSL) || isNaN(aUSL) || isNaN(aLSL)) {
             alert("❌ Please enter valid numbers for both Thickness (USL & LSL) and Air Permeability (USL & LSL).");
             return;
@@ -495,18 +663,13 @@
             alert("❌ LSL (规格下限) must be smaller than USL (规格上限).");
             return;
         }
-
-        if (oldKey) {
-            if (!checkAdminAuth()) return;
-        }
+        if (oldKey && !checkAdminAuth()) return;
 
         let newKey = nameInput.toUpperCase().replace(/[.#$\[\]\/]/g, "_");
         if (nameInput.toUpperCase().includes("SW509J") && (!oldKey || oldKey === "SW509J")) newKey = "SW509J";
         if (nameInput.toUpperCase().includes("SW810K") && (!oldKey || oldKey === "SW810K")) newKey = "SW810K";
 
-        if (oldKey && oldKey !== newKey && modelSpecDB[oldKey]) {
-            delete modelSpecDB[oldKey];
-        }
+        if (oldKey && oldKey !== newKey && modelSpecDB[oldKey]) delete modelSpecDB[oldKey];
 
         modelSpecDB[newKey] = {
             fullName: nameInput,
@@ -518,37 +681,25 @@
         resetSpecForm();
         renderCharts();
 
-        if (database) {
-            database.ref('mesModelSpecs').set(modelSpecDB).then(() => {
-                if (pendingUnknownModels.length > 0) {
-                    let nextModel = pendingUnknownModels.shift();
-                    openSpecModal(nextModel, true);
-                } else {
-                    closeSpecModal();
-                }
-            }).catch(err => {
-                alert("❌ Error saving model to cloud: " + err.message);
-            });
-        } else {
-            closeSpecModal();
-        }
+        cloudWrite('mesModelSpecs', modelSpecDB).then(() => {
+            if (pendingUnknownModels.length > 0) {
+                openSpecModal(pendingUnknownModels.shift(), true);
+            } else {
+                closeSpecModal();
+            }
+        }).catch(err => alert("❌ Error saving model to cloud: " + err.message));
     }
 
     function deleteModelSpec(key) {
         const m = modelSpecDB[key];
         const disp = m ? (m.fullName || key) : key;
         if (!checkAdminAuth()) return;
-        
         if (confirm(`Are you sure you want to permanently delete model "${disp}" from the Cloud Database?`)) {
             delete modelSpecDB[key];
             renderSpecTable();
             resetSpecForm();
             renderCharts();
-            if (database) {
-                database.ref('mesModelSpecs').set(modelSpecDB).catch(err => {
-                    alert("❌ Error deleting model from cloud: " + err.message);
-                });
-            }
+            cloudWrite('mesModelSpecs', modelSpecDB).catch(err => alert("❌ Error deleting model: " + err.message));
         }
     }
 
@@ -558,21 +709,15 @@
             let key = getNormalizedModelKey(rawModelStr);
             if (!key) return;
             if (!modelSpecDB[key] || !modelSpecDB[key].air || !modelSpecDB[key].thick) {
-                if (!pendingUnknownModels.includes(rawModelStr)) {
-                    pendingUnknownModels.push(rawModelStr);
-                }
+                if (!pendingUnknownModels.includes(rawModelStr)) pendingUnknownModels.push(rawModelStr);
             }
         });
-
         if (pendingUnknownModels.length > 0 && document.getElementById('specModalOverlay').style.display !== 'flex') {
-            let firstUnknown = pendingUnknownModels.shift();
-            openSpecModal(firstUnknown, true);
+            openSpecModal(pendingUnknownModels.shift(), true);
         }
     }
 
-    document.getElementById('editSpecsBtn').addEventListener('click', function() {
-        openSpecModal();
-    });
+    document.getElementById('editSpecsBtn').addEventListener('click', () => openSpecModal());
 
     function getLineBaseConfig(line, typeKey) {
         let lineObj = spcConfigs[typeKey].lines.find(l => l.id === line);
@@ -592,21 +737,15 @@
     function extractModelFromRow(row) {
         let matCode = findValueByKeywords(row, ['物料编码', 'material code', '物料号', 'item code', '母卷物料']);
         let matName = findValueByKeywords(row, ['物料名称', '物料描述', '产品型号', '规格型号', '型号', 'material name', 'model', '物料', 'specification']);
-
         if (matCode && matName && String(matCode).trim() !== String(matName).trim()) {
-            let c = String(matCode).trim();
-            let n = String(matName).trim();
-            if (n.includes(c)) return n;
-            return `${c}|${n}`;
+            let c = String(matCode).trim(), n = String(matName).trim();
+            return n.includes(c) ? n : `${c}|${n}`;
         }
         if (matName && String(matName).trim() !== "") return String(matName).trim();
         if (matCode && String(matCode).trim() !== "") return String(matCode).trim();
-
         for (let k in row) {
             let v = String(row[k]).trim();
-            if (/(\bSW\d+[A-Z0-9_+]*\b|200000\d{3})/i.test(v) && !v.includes("WDW")) {
-                return v;
-            }
+            if (/(\bSW\d+[A-Z0-9_+]*\b|200000\d{3})/i.test(v) && !v.includes("WDW")) return v;
         }
         return null;
     }
@@ -656,29 +795,25 @@
     function getMotherBarcode(barcode) {
         let b = barcode ? String(barcode).trim() : '';
         let match = b.match(/^(.*[A-Za-z]+)(\d)(\d{3})$/);
-        if (match) return match[1] + match[3]; 
-        return b; 
+        return match ? (match[1] + match[3]) : b;
+    }
+
+    function formatTVCompactBarcode(mb) {
+        if (!mb || mb === 'No Data') return '';
+        return String(mb).replace(/^WDW\d/i, '');
     }
 
     function calculateSPCStats(dataArray, usl, lsl) {
         let validData = dataArray.filter(n => n !== null && n !== undefined && !isNaN(n)).map(Number);
         if (validData.length === 0) return { mean: 0, stdDev: 0, cpk: 'N/A' };
-        
         let sum = validData.reduce((a,b) => a + b, 0);
         let mean = sum / validData.length;
-        
         if (validData.length === 1) return { mean: mean, stdDev: 0, cpk: 'N/A' };
-        
         let variance = validData.reduce((a,b) => a + Math.pow(b - mean, 2), 0) / (validData.length - 1);
         if (variance < 0) variance = 0; 
-        
         let stdDev = Math.sqrt(variance) || 0;
-        
-        let cpk = 'N/A';
-        if (stdDev > 0) {
-            cpk = Math.min((usl - mean) / (3 * stdDev), (mean - lsl) / (3 * stdDev)).toFixed(3);
-        }
-        return { mean: mean, stdDev: stdDev, cpk: cpk };
+        let cpk = stdDev > 0 ? Math.min((usl - mean) / (3 * stdDev), (mean - lsl) / (3 * stdDev)).toFixed(3) : 'N/A';
+        return { mean, stdDev, cpk };
     }
 
     function formatForInput(d) {
@@ -688,105 +823,70 @@
     }
 
     function snapToLatest() {
+        isAutoFollowLatest = true;
         let maxTime = 0;
         for (let line in globalData) {
             if (!Array.isArray(globalData[line])) continue;
-            globalData[line].forEach(row => {
-                if (row && row.time > maxTime) maxTime = row.time;
-            });
+            globalData[line].forEach(row => { if (row && row.time > maxTime) maxTime = row.time; });
         }
-        
         let targetTime = maxTime > 0 ? new Date(maxTime) : new Date();
         let h = targetTime.getHours();
-        
-        let shiftStart = new Date(targetTime);
-        let shiftEnd = new Date(targetTime);
-        shiftStart.setMinutes(0, 0, 0);
-        shiftEnd.setMinutes(0, 0, 0);
+        let shiftStart = new Date(targetTime), shiftEnd = new Date(targetTime);
+        shiftStart.setMinutes(0, 0, 0); shiftEnd.setMinutes(0, 0, 0);
 
-        if (h >= 4 && h < 10) {
-            shiftStart.setHours(4); shiftEnd.setHours(10);
-        } else if (h >= 10 && h < 16) {
-            shiftStart.setHours(10); shiftEnd.setHours(16);
-        } else if (h >= 16 && h < 22) {
-            shiftStart.setHours(16); shiftEnd.setHours(22);
-        } else { 
-            if (h >= 22) {
-                shiftStart.setHours(22); shiftEnd.setDate(shiftEnd.getDate() + 1); shiftEnd.setHours(4);
-            } else {
-                shiftStart.setDate(shiftStart.getDate() - 1); shiftStart.setHours(22); shiftEnd.setHours(4);
-            }
-        }
+        if (h >= 4 && h < 10) { shiftStart.setHours(4); shiftEnd.setHours(10); }
+        else if (h >= 10 && h < 16) { shiftStart.setHours(10); shiftEnd.setHours(16); }
+        else if (h >= 16 && h < 22) { shiftStart.setHours(16); shiftEnd.setHours(22); }
+        else if (h >= 22) { shiftStart.setHours(22); shiftEnd.setDate(shiftEnd.getDate() + 1); shiftEnd.setHours(4); }
+        else { shiftStart.setDate(shiftStart.getDate() - 1); shiftStart.setHours(22); shiftEnd.setHours(4); }
         
         document.getElementById('highlightStart').value = formatForInput(shiftStart);
         document.getElementById('highlightEnd').value = formatForInput(shiftEnd);
         renderCharts();
     }
 
-    // --- BUTTON CONTROLS ---
     document.getElementById('jumpLatestBtn').addEventListener('click', snapToLatest);
 
     document.getElementById('prevShiftBtn').addEventListener('click', function() {
-        let startInput = document.getElementById('highlightStart').value;
-        let endInput = document.getElementById('highlightEnd').value;
-        if (!startInput || !endInput) return;
-
-        let startDate = new Date(startInput);
-        let endDate = new Date(endInput);
-        startDate.setHours(startDate.getHours() - 6);
-        endDate.setHours(endDate.getHours() - 6);
-
-        document.getElementById('highlightStart').value = formatForInput(startDate);
-        document.getElementById('highlightEnd').value = formatForInput(endDate);
+        let s = document.getElementById('highlightStart').value, e = document.getElementById('highlightEnd').value;
+        if (!s || !e) return;
+        isAutoFollowLatest = false;
+        let sd = new Date(s), ed = new Date(e);
+        sd.setHours(sd.getHours() - 6); ed.setHours(ed.getHours() - 6);
+        document.getElementById('highlightStart').value = formatForInput(sd);
+        document.getElementById('highlightEnd').value = formatForInput(ed);
         renderCharts();
     });
 
     document.getElementById('nextShiftBtn').addEventListener('click', function() {
-        let startInput = document.getElementById('highlightStart').value;
-        let endInput = document.getElementById('highlightEnd').value;
-        if (!startInput || !endInput) return;
-
-        let startDate = new Date(startInput);
-        let endDate = new Date(endInput);
-        startDate.setHours(startDate.getHours() + 6);
-        endDate.setHours(endDate.getHours() + 6);
-
-        document.getElementById('highlightStart').value = formatForInput(startDate);
-        document.getElementById('highlightEnd').value = formatForInput(endDate);
+        let s = document.getElementById('highlightStart').value, e = document.getElementById('highlightEnd').value;
+        if (!s || !e) return;
+        isAutoFollowLatest = false;
+        let sd = new Date(s), ed = new Date(e);
+        sd.setHours(sd.getHours() + 6); ed.setHours(ed.getHours() + 6);
+        document.getElementById('highlightStart').value = formatForInput(sd);
+        document.getElementById('highlightEnd').value = formatForInput(ed);
         renderCharts();
     });
 
-    // BULLETPROOF TEXT COPY (Works on local file:// and under IT restrictions)
     document.getElementById('copyTextBtn').addEventListener('click', function() {
-        const btn = this;
-        const orig = btn.innerHTML;
+        const btn = this, orig = btn.innerHTML;
         const textToCopy = "Please refer to the above for the W1-W4 102 Wet Process Thickness and Air Permeability SPC.\n请参考上方关于 W1-W4 102 湿法厚度与透气度的 SPC。";
-        
         let copied = false;
         try {
             const el = document.createElement('textarea');
-            el.value = textToCopy;
-            el.style.position = 'fixed';
-            el.style.left = '-9999px';
-            el.style.top = '0';
-            document.body.appendChild(el);
-            el.focus();
-            el.select();
+            el.value = textToCopy; el.style.position = 'fixed'; el.style.left = '-9999px';
+            document.body.appendChild(el); el.focus(); el.select();
             copied = document.execCommand('copy');
             document.body.removeChild(el);
-        } catch (e) {
-            copied = false;
-        }
-
+        } catch (e) { copied = false; }
         if (!copied && navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(textToCopy).catch(() => {});
         }
-
         btn.innerHTML = '✅ Copied!';
         setTimeout(() => btn.innerHTML = orig, 2500);
     });
 
-    // --- DELETION LOGIC ---
     function checkAdminAuth() {
         let input = prompt("ADMIN REQUIRED: Enter password to proceed:");
         if (input === "QAPermission") return true;
@@ -795,27 +895,20 @@
     }
 
     document.getElementById('delShiftBtn').addEventListener('click', function() {
-        let startInput = document.getElementById('highlightStart').value;
-        let endInput = document.getElementById('highlightEnd').value;
-        if (!startInput || !endInput) { alert("Please select a Red Box Start and End time first."); return; }
-        let delStart = new Date(startInput).getTime();
-        let delEnd = new Date(endInput).getTime();
-        
-        if (checkAdminAuth()) {
-            if(confirm(`FINAL WARNING: Delete data between ${startInput.replace('T', ' ')} and ${endInput.replace('T', ' ')}?`)) {
-                let updatedData = { W1: [], W2: [], W3: [], W4: [], W5: [], W6: [] };
-                let deletedCount = 0;
-                for(let line in globalData) {
-                    globalData[line].forEach(item => {
-                        if (item.time < delStart || item.time > delEnd) updatedData[line].push(item);
-                        else deletedCount++;
-                    });
-                }
-                if (deletedCount === 0) { alert("No data found in this timeframe to delete."); return; }
-                globalData = updatedData;
-                renderCharts();
-                if (database) database.ref('mesGlobalData').set(updatedData).then(() => alert(`Successfully deleted ${deletedCount} barcodes.`));
+        let s = document.getElementById('highlightStart').value, e = document.getElementById('highlightEnd').value;
+        if (!s || !e) { alert("Please select a Red Box Start and End time first."); return; }
+        let delStart = new Date(s).getTime(), delEnd = new Date(e).getTime();
+        if (checkAdminAuth() && confirm(`FINAL WARNING: Delete data between ${s.replace('T', ' ')} and ${e.replace('T', ' ')}?`)) {
+            let updatedData = { W1: [], W2: [], W3: [], W4: [], W5: [], W6: [] }, deletedCount = 0;
+            for(let line in globalData) {
+                globalData[line].forEach(item => {
+                    if (item.time < delStart || item.time > delEnd) updatedData[line].push(item);
+                    else deletedCount++;
+                });
             }
+            if (deletedCount === 0) { alert("No data found in this timeframe to delete."); return; }
+            globalData = updatedData; renderCharts();
+            cloudWrite('mesGlobalData', updatedData).then(() => alert(`Successfully deleted ${deletedCount} barcodes.`));
         }
     });
 
@@ -823,91 +916,61 @@
         let targetMonth = prompt("Enter the precise month to delete (Format YYYY-MM, e.g., 2026-11):");
         if (!targetMonth) return;
         if (!/^\d{4}-\d{2}$/.test(targetMonth)) { alert("❌ Invalid format. You must type YYYY-MM exactly."); return; }
-        
-        if (checkAdminAuth()) {
-            if(confirm(`FINAL WARNING: Are you absolutely sure you want to permanently delete ALL data from ${targetMonth}?`)) {
-                let updatedData = { W1: [], W2: [], W3: [], W4: [], W5: [], W6: [] };
-                let deletedCount = 0;
-                for(let line in globalData) {
-                    globalData[line].forEach(item => {
-                        let d = new Date(item.time);
-                        let itemMonth = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-                        if (itemMonth !== targetMonth) updatedData[line].push(item);
-                        else deletedCount++;
-                    });
-                }
-                if (deletedCount === 0) { alert(`No data found for ${targetMonth} to delete.`); return; }
-                globalData = updatedData;
-                renderCharts();
-                if (database) database.ref('mesGlobalData').set(updatedData).then(() => alert(`Successfully deleted ${deletedCount} barcodes from ${targetMonth}.`));
+        if (checkAdminAuth() && confirm(`FINAL WARNING: Permanently delete ALL data from ${targetMonth}?`)) {
+            let updatedData = { W1: [], W2: [], W3: [], W4: [], W5: [], W6: [] }, deletedCount = 0;
+            for(let line in globalData) {
+                globalData[line].forEach(item => {
+                    let d = new Date(item.time);
+                    let itemMonth = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+                    if (itemMonth !== targetMonth) updatedData[line].push(item);
+                    else deletedCount++;
+                });
             }
+            if (deletedCount === 0) { alert(`No data found for ${targetMonth} to delete.`); return; }
+            globalData = updatedData; renderCharts();
+            cloudWrite('mesGlobalData', updatedData).then(() => alert(`Successfully deleted ${deletedCount} barcodes from ${targetMonth}.`));
         }
     });
 
     document.getElementById('delAllBtn').addEventListener('click', function() {
-        if (checkAdminAuth()) {
-            if(confirm("FINAL WARNING: Are you absolutely sure you want to WIPE THE ENTIRE DATABASE for all time?")) {
-                globalData = { W1: [], W2: [], W3: [], W4: [], W5: [], W6: [] };
-                renderCharts();
-                if (database) database.ref('mesGlobalData').remove().then(() => alert("Database wiped."));
-            }
+        if (checkAdminAuth() && confirm("FINAL WARNING: WIPE THE ENTIRE DATABASE for all time?")) {
+            globalData = { W1: [], W2: [], W3: [], W4: [], W5: [], W6: [] };
+            renderCharts();
+            cloudDelete('mesGlobalData').then(() => alert("Database wiped."));
         }
     });
 
-    // --- FIREBASE REAL-TIME SYNC LISTENER ---
+    // --- INITIALIZATION: RUNS IMMEDIATELY + DUAL-CHANNEL CLOUD SYNC ---
     document.addEventListener('DOMContentLoaded', () => {
         updateEngineBadge();
-        const statusEl = document.getElementById('uploadStatus');
-        
-        snapToLatest();
+        snapToLatest(); // Immediately populates date inputs so UI is never blank
 
-        if (!database) {
-            statusEl.textContent = "⚠️ Status: Running in Offline / Local Mode (Upload Excel file to view graphs).";
-            return;
+        // 1. Immediate HTTPS REST Fetch (Bypasses blocked WebSockets / gstatic firewall)
+        pollCloudViaREST(true);
+
+        // 2. Also attach Firebase WebSocket listeners if available
+        if (database) {
+            try {
+                database.ref('.info/connected').on('value', snap => { wsConnected = (snap.val() === true); });
+                database.ref('mesModelSpecs').on('value', specSnap => {
+                    const savedSpecs = specSnap.val();
+                    if (savedSpecs) {
+                        modelSpecDB = { ...defaultModelSpecs, ...savedSpecs };
+                        if (document.getElementById('specModalOverlay').style.display === 'flex') renderSpecTable();
+                        renderCharts();
+                    }
+                });
+                database.ref('mesGlobalData').on('value', snapshot => {
+                    applyIncomingCloudData(snapshot.val(), "Real-Time Push");
+                });
+            } catch (e) { console.warn("WebSocket listener error:", e); }
         }
 
-        database.ref('mesModelSpecs').on('value', function(specSnap) {
-            const savedSpecs = specSnap.val();
-            if (savedSpecs) {
-                modelSpecDB = { ...defaultModelSpecs, ...savedSpecs };
-            } else {
-                modelSpecDB = JSON.parse(JSON.stringify(defaultModelSpecs));
-                database.ref('mesModelSpecs').set(modelSpecDB);
-            }
-            if (document.getElementById('specModalOverlay').style.display === 'flex') {
-                renderSpecTable();
-            }
-            renderCharts();
-        });
-
-        database.ref('mesGlobalData').on('value', function(snapshot) {
-            const savedData = snapshot.val();
-            
-            if (savedData) {
-                ['W1', 'W2', 'W3', 'W4', 'W5', 'W6'].forEach(line => {
-                    let ld = savedData[line] || [];
-                    if (!Array.isArray(ld)) ld = Object.values(ld); 
-                    globalData[line] = ld.filter(item => item && item.barcode);
-                    globalData[line].forEach(item => {
-                        if (typeof item.time === 'string') item.time = new Date(item.time).getTime();
-                        if (item.airValue !== undefined && item.airValue !== null) item.airValue = Number(item.airValue);
-                        if (item.thickValue !== undefined && item.thickValue !== null) item.thickValue = Number(item.thickValue);
-                    });
-                });
-                
-                statusEl.textContent = "✅ Status: Live cloud data & model specs synced. Watching for real-time updates...";
-                statusEl.className = "status success";
-                snapToLatest();
-            } else {
-                globalData = { W1: [], W2: [], W3: [], W4: [], W5: [], W6: [] };
-                snapToLatest();
-                statusEl.textContent = "Status: Cloud Database is completely empty. Waiting for Data Upload...";
-                statusEl.className = "status";
-            }
-        });
+        // 3. Auto-Refresh Polling every 25 seconds (Keeps TVs & Firewall PCs 100% in sync)
+        setInterval(() => { pollCloudViaREST(false); }, 25000);
     });
 
-    // --- EXCEL FILE PARSING & CLOUD UPLOAD ---
+    // --- EXCEL UPLOAD ---
     function parseMESData(dataArray) {
         let addedCount = 0;
         let tempMap = { W1: new Map(), W2: new Map(), W3: new Map(), W4: new Map() };
@@ -915,16 +978,13 @@
         
         for(let line in globalData) {
             if(tempMap[line] && Array.isArray(globalData[line])) {
-                globalData[line].forEach(item => {
-                    if (item && item.barcode) tempMap[line].set(item.barcode, item);
-                });
+                globalData[line].forEach(item => { if (item && item.barcode) tempMap[line].set(item.barcode, item); });
             }
         }
 
         dataArray.forEach(rawRow => {
             const row = {};
             for (let k in rawRow) row[k.trim()] = rawRow[k];
-            
             let line = findValueByKeywords(row, ['production line', '产线名称', 'line', '产线']);
             let timeStr = findValueByKeywords(row, ['cut film time', '检验时间', 'time', '创建时间', 'date', '日期']);
             let barcode = extractBarcode(row);
@@ -936,25 +996,20 @@
                 else if (line.includes('W3')) line = 'W3';
                 else if (line.includes('W4')) line = 'W4';
             }
-
             if (!line || !timeStr || !barcode) return;
 
             let dateObj;
             if (typeof timeStr === 'number') {
                 let utcMs = Math.round((timeStr - 25569) * 86400 * 1000);
-                let offsetMs = new Date().getTimezoneOffset() * 60000; 
-                dateObj = new Date(utcMs + offsetMs);
+                dateObj = new Date(utcMs + (new Date().getTimezoneOffset() * 60000));
             } else {
                 let ts = String(timeStr).trim();
                 dateObj = new Date(ts.replace(/-/g, '/'));
                 if (isNaN(dateObj.getTime())) {
                     let parts = ts.split(/[\s/:-]+/);
                     if(parts.length >= 3) {
-                        if(parts[0].length === 4) {
-                            dateObj = new Date(parts[0], parts[1]-1, parts[2], parts[3]||0, parts[4]||0, parts[5]||0);
-                        } else if (parts[2].length === 4) {
-                            dateObj = new Date(parts[2], parts[1]-1, parts[0], parts[3]||0, parts[4]||0, parts[5]||0);
-                        }
+                        if(parts[0].length === 4) dateObj = new Date(parts[0], parts[1]-1, parts[2], parts[3]||0, parts[4]||0, parts[5]||0);
+                        else if (parts[2].length === 4) dateObj = new Date(parts[2], parts[1]-1, parts[0], parts[3]||0, parts[4]||0, parts[5]||0);
                     }
                 }
             }
@@ -965,9 +1020,7 @@
 
             if(tempMap[line]) {
                 let existingItem = tempMap[line].get(barcode);
-                if(!existingItem) {
-                    addedCount++; 
-                }
+                if(!existingItem) addedCount++; 
                 let finalModel = rowModel || (existingItem ? existingItem.model : null);
                 if (finalModel) detectedModels.add(finalModel);
 
@@ -986,21 +1039,16 @@
             globalData[line].sort((a,b) => a.time - b.time); 
         }
 
+        lastDataFingerprint = computeDataFingerprint(globalData);
         snapToLatest();
-
-        if (database) {
-            database.ref('mesGlobalData').set(globalData).catch(err => console.log("DB Error:", err));
-        }
-
+        cloudWrite('mesGlobalData', globalData).catch(err => console.warn("Cloud write error:", err));
         queueUnknownModelsForPrompt(Array.from(detectedModels));
-
         return addedCount;
     }
 
     document.getElementById('mesFileUpload').addEventListener('change', function(event) {
         const file = event.target.files[0];
         if (!file) return;
-        
         const statusEl = document.getElementById('uploadStatus');
         statusEl.textContent = "Status: Parsing Excel file and pushing to Cloud...";
         statusEl.className = "status";
@@ -1011,11 +1059,10 @@
                 const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
                 const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
                 let newAddedCount = parseMESData(jsonData); 
-                
-                statusEl.textContent = `✅ Success: Upload Processed! Added ${newAddedCount} new barcodes (or refreshed existing models) in the cloud.`;
+                markSyncTimestamp(true);
+                statusEl.textContent = `✅ Success: Upload Processed! Added ${newAddedCount} new barcodes (or refreshed existing models) across all connected screens.`;
                 statusEl.className = "status success";
             } catch (error) {
-                console.error(error);
                 statusEl.textContent = "❌ Error parsing file structure.";
                 statusEl.className = "status error";
             }
@@ -1024,705 +1071,447 @@
         event.target.value = ''; 
     });
 
-    function buildSPCCard(lineObj, typeKey, dynamicStats) {
-        let uslNum = Number(lineObj.USL) || 0;
-        let lslNum = Number(lineObj.LSL) || 0;
+    function buildSPCCard(lineObj, typeKey, dynamicStats, customContainerId = null) {
+        let uslNum = Number(lineObj.USL) || 0, lslNum = Number(lineObj.LSL) || 0;
+        let domId = customContainerId || `chart_${typeKey}_${lineObj.id}`;
         let cpkHTML = `
-        <div class="spc-info-box" style="border: 2px solid #ff0000; border-radius: 4px; padding: 4px; background: #fff0f0; margin-top: auto; box-shadow: 0 2px 4px rgba(255,0,0,0.15);">
+        <div class="spc-info-box cpk-highlight-box" style="border: 2px solid #ff0000; border-radius: 4px; padding: 4px; background: #fff0f0; margin-top: auto; box-shadow: 0 2px 4px rgba(255,0,0,0.15);">
             <div class="spc-info-box-label" style="color: #ff0000; text-align: center; font-size: 13px;">CPK</div>
             <div class="spc-info-box-value" style="background: transparent; border: none; font-size: 15px; font-weight: bold; color: #ff0000; text-align: center; padding: 0;">${dynamicStats.cpk}</div>
         </div>`;
 
-        let rightPanelContent = '';
-        
-        if (dynamicStats.cpk === 'N/A' && dynamicStats.mean === 0 && dynamicStats.stdDev === 0) {
-             rightPanelContent = `
-                <div class="spc-legend">
-                    <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-usl);height:2px;"></span> 上限: ${uslNum.toFixed(4)}</div>
-                    <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-usl);height:2px;"></span> 下限: ${lslNum.toFixed(4)}</div>
-                </div>
-                <div class="spc-stats-container" style="justify-content: center; align-items: center; color: #777;">
-                    No data in timeframe
-                </div>
-             `;
-        } else {
-             rightPanelContent = `
-                <div class="spc-legend">
-                    <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-usl);height:2px;"></span> 上限: ${uslNum.toFixed(4)}</div>
-                    <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-ucl);height:2px;"></span> +3σ: ${(dynamicStats.mean + 3*dynamicStats.stdDev).toFixed(4)}</div>
-                    <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-2sig);height:1px;"></span> +2σ: ${(dynamicStats.mean + 2*dynamicStats.stdDev).toFixed(4)}</div>
-                    <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-1sig);height:1px;"></span> +σ: ${(dynamicStats.mean + 1*dynamicStats.stdDev).toFixed(4)}</div>
-                    <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-cl);height:2px;"></span> 中心值: ${dynamicStats.mean.toFixed(4)}</div>
-                    <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-data);height:1.5px;position:relative;"><span style="position:absolute;top:-2.5px;left:7px;width:6px;height:6px;background:var(--c-data);border-radius:50%;"></span></span> 平均值</div>
-                    <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-1sig);height:1px;"></span> -σ: ${(dynamicStats.mean - 1*dynamicStats.stdDev).toFixed(4)}</div>
-                    <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-2sig);height:1px;"></span> -2σ: ${(dynamicStats.mean - 2*dynamicStats.stdDev).toFixed(4)}</div>
-                    <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-ucl);height:2px;"></span> -3σ: ${(dynamicStats.mean - 3*dynamicStats.stdDev).toFixed(4)}</div>
-                    <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-usl);height:2px;"></span> 下限: ${lslNum.toFixed(4)}</div>
-                </div>
-                <div class="spc-stats-container">
-                    <div class="spc-info-box"><div class="spc-info-box-label">刷新频率</div><div class="spc-info-box-value">120</div></div>
-                    <div class="spc-info-box"><div class="spc-info-box-label">规格上限</div><div class="spc-info-box-value">${uslNum.toFixed(4)}</div></div>
-                    <div class="spc-info-box"><div class="spc-info-box-label">规格下限</div><div class="spc-info-box-value">${lslNum.toFixed(4)}</div></div>
-                    ${cpkHTML}
-                </div>
-             `;
-        }
+        let rightPanelContent = (dynamicStats.cpk === 'N/A' && dynamicStats.mean === 0 && dynamicStats.stdDev === 0) ? `
+            <div class="spc-legend">
+                <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-usl);height:2px;"></span> 上限: ${uslNum.toFixed(4)}</div>
+                <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-usl);height:2px;"></span> 下限: ${lslNum.toFixed(4)}</div>
+            </div>
+            <div class="spc-stats-container" style="justify-content: center; align-items: center; color: #777;">No data in timeframe</div>
+        ` : `
+            <div class="spc-legend">
+                <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-usl);height:2px;"></span> 上限: ${uslNum.toFixed(4)}</div>
+                <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-ucl);height:2px;"></span> +3σ: ${(dynamicStats.mean + 3*dynamicStats.stdDev).toFixed(4)}</div>
+                <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-2sig);height:1px;"></span> +2σ: ${(dynamicStats.mean + 2*dynamicStats.stdDev).toFixed(4)}</div>
+                <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-1sig);height:1px;"></span> +σ: ${(dynamicStats.mean + 1*dynamicStats.stdDev).toFixed(4)}</div>
+                <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-cl);height:2px;"></span> 中心值: ${dynamicStats.mean.toFixed(4)}</div>
+                <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-data);height:1.5px;position:relative;"><span style="position:absolute;top:-2.5px;left:7px;width:6px;height:6px;background:var(--c-data);border-radius:50%;"></span></span> 平均值</div>
+                <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-1sig);height:1px;"></span> -σ: ${(dynamicStats.mean - 1*dynamicStats.stdDev).toFixed(4)}</div>
+                <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-2sig);height:1px;"></span> -2σ: ${(dynamicStats.mean - 2*dynamicStats.stdDev).toFixed(4)}</div>
+                <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-ucl);height:2px;"></span> -3σ: ${(dynamicStats.mean - 3*dynamicStats.stdDev).toFixed(4)}</div>
+                <div class="spc-legend-item"><span class="spc-line-swatch" style="background:var(--c-usl);height:2px;"></span> 下限: ${lslNum.toFixed(4)}</div>
+            </div>
+            <div class="spc-stats-container">
+                <div class="spc-info-box"><div class="spc-info-box-label">刷新频率</div><div class="spc-info-box-value">120</div></div>
+                <div class="spc-info-box"><div class="spc-info-box-label">规格上限</div><div class="spc-info-box-value">${uslNum.toFixed(4)}</div></div>
+                <div class="spc-info-box"><div class="spc-info-box-label">规格下限</div><div class="spc-info-box-value">${lslNum.toFixed(4)}</div></div>
+                ${cpkHTML}
+            </div>`;
 
         return `
         <div class="spc-card">
-            <div class="spc-title">
-                Production Line : ${lineObj.name} &nbsp;|&nbsp; Model : ${lineObj.material} &nbsp;|&nbsp; Inspection Item : ${spcConfigs[typeKey].inspItem}
-            </div>
+            <div class="spc-title">Production Line : ${lineObj.name} &nbsp;|&nbsp; Model : ${lineObj.material} &nbsp;|&nbsp; Inspection Item : ${spcConfigs[typeKey].inspItem}</div>
             <div class="spc-body">
-                <div id="chart_${typeKey}_${lineObj.id}" class="spc-echarts-container"></div>
-                <div class="spc-info-panel">
-                    ${rightPanelContent}
-                </div>
+                <div id="${domId}" class="spc-echarts-container"></div>
+                <div class="spc-info-panel">${rightPanelContent}</div>
             </div>
         </div>`;
     }
 
-    // ============================================================================
-    // BUILT-IN NATIVE HTML5 CANVAS SPC GRAPH ENGINE (100% OFFLINE / FIREWALL-PROOF)
-    // ============================================================================
+    // --- NATIVE HTML5 CANVAS SPC GRAPH ENGINE ---
     function paintSPCPlotOnContext(ctx, width, height, cfg) {
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, width, height);
-
-        const pad = { top: 18, right: 22, bottom: 92, left: 48 };
-        const plotW = width - pad.left - pad.right;
-        const plotH = height - pad.top - pad.bottom;
-
-        const yMin = cfg.chartYMin;
-        const yMax = cfg.chartYMax;
-        const ySpan = (yMax - yMin) > 0 ? (yMax - yMin) : 10;
-
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height);
+        const isCompact = height < 260;
+        const pad = { top: isCompact ? 8 : 18, right: isCompact ? 10 : 22, bottom: isCompact ? 52 : 92, left: isCompact ? 38 : 48 };
+        const plotW = Math.max(50, width - pad.left - pad.right), plotH = Math.max(40, height - pad.top - pad.bottom);
+        const yMin = cfg.chartYMin, yMax = cfg.chartYMax, ySpan = (yMax - yMin) > 0 ? (yMax - yMin) : 10;
         const getY = (val) => pad.top + plotH - ((val - yMin) / ySpan) * plotH;
         const n = cfg.chartData.length;
-        const getX = (idx) => {
-            if (n <= 1) return pad.left + plotW / 2;
-            return pad.left + ((idx + 0.5) / n) * plotW;
-        };
+        const getX = (idx) => n <= 1 ? (pad.left + plotW / 2) : (pad.left + ((idx + 0.5) / n) * plotW);
 
-        // 1. Axes
-        ctx.strokeStyle = '#888888';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(pad.left, pad.top);
-        ctx.lineTo(pad.left, pad.top + plotH);
-        ctx.lineTo(pad.left + plotW, pad.top + plotH);
-        ctx.stroke();
+        ctx.strokeStyle = '#888888'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(pad.left, pad.top); ctx.lineTo(pad.left, pad.top + plotH); ctx.lineTo(pad.left + plotW, pad.top + plotH); ctx.stroke();
 
-        // 2. Y-Axis Ticks
-        ctx.fillStyle = '#333333';
-        ctx.font = '10px "Microsoft YaHei", sans-serif';
-        ctx.textAlign = 'right';
-        ctx.textBaseline = 'middle';
-        const ySteps = 5;
+        ctx.fillStyle = '#333333'; ctx.font = (isCompact ? '8.5px' : '10px') + ' "Microsoft YaHei", sans-serif';
+        ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+        const ySteps = isCompact ? 4 : 5;
         for (let i = 0; i <= ySteps; i++) {
-            const v = yMin + (ySpan * i) / ySteps;
-            const y = getY(v);
-            ctx.fillText(Number(v.toFixed(2)), pad.left - 6, y);
-            ctx.beginPath();
-            ctx.moveTo(pad.left - 3, y);
-            ctx.lineTo(pad.left, y);
-            ctx.stroke();
+            const v = yMin + (ySpan * i) / ySteps, y = getY(v);
+            ctx.fillText(Number(v.toFixed(2)), pad.left - 4, y);
+            ctx.beginPath(); ctx.moveTo(pad.left - 3, y); ctx.lineTo(pad.left, y); ctx.stroke();
         }
 
-        // 3. Specification & Sigma Lines
         cfg.markLinesData.forEach(ml => {
             if (ml.yAxis === undefined || isNaN(ml.yAxis)) return;
             const y = getY(ml.yAxis);
-            if (y < pad.top - 5 || y > pad.top + plotH + 5) return;
-            ctx.save();
-            ctx.strokeStyle = ml.lineStyle.color;
-            ctx.lineWidth = ml.lineStyle.width || 1;
-            ctx.beginPath();
-            ctx.moveTo(pad.left, y);
-            ctx.lineTo(pad.left + plotW, y);
-            ctx.stroke();
-            ctx.restore();
+            if (y < pad.top - 4 || y > pad.top + plotH + 4) return;
+            ctx.save(); ctx.strokeStyle = ml.lineStyle.color; ctx.lineWidth = ml.lineStyle.width || 1;
+            ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + plotW, y); ctx.stroke(); ctx.restore();
         });
 
         const validPoints = [];
-        cfg.chartData.forEach((v, i) => {
-            if (v !== null && v !== undefined && !isNaN(v)) {
-                validPoints.push({ idx: i, x: getX(i), y: getY(v), val: v });
-            }
-        });
+        cfg.chartData.forEach((v, i) => { if (v !== null && v !== undefined && !isNaN(v)) validPoints.push({ idx: i, x: getX(i), y: getY(v), val: v }); });
 
         if (validPoints.length === 0) {
-            ctx.fillStyle = '#888888';
-            ctx.font = 'bold 14px "Microsoft YaHei", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('No Measured Data in Selected 24-Hour Window', pad.left + plotW / 2, pad.top + plotH / 2);
+            ctx.fillStyle = '#888888'; ctx.font = 'bold ' + (isCompact ? '11px' : '14px') + ' "Microsoft YaHei", sans-serif';
+            ctx.textAlign = 'center'; ctx.fillText('No Measured Data in Selected 24-Hour Window', pad.left + plotW / 2, pad.top + plotH / 2);
             return { pad, plotW, plotH, getX, getY, n };
         }
 
-        // 4. Red Box Highlight
         if (cfg.boxStartIndex !== -1 && cfg.boxEndIndex !== -1) {
             const stepW = n > 0 ? (plotW / n) : 20;
             const xStart = Math.max(pad.left, getX(cfg.boxStartIndex) - Math.min(stepW * 0.4, 8));
             const xEnd = Math.min(pad.left + plotW, getX(cfg.boxEndIndex) + Math.min(stepW * 0.4, 8));
-            ctx.save();
-            ctx.strokeStyle = '#ff0000';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(xStart, pad.top, Math.max(4, xEnd - xStart), plotH);
-            ctx.restore();
+            ctx.save(); ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 2;
+            ctx.strokeRect(xStart, pad.top, Math.max(4, xEnd - xStart), plotH); ctx.restore();
         }
 
-        // 5. X-Axis Ticks & Rotated Mother Barcodes
         const yAxisBottom = pad.top + plotH;
         for (let i = 0; i < n; i++) {
             const x = getX(i);
-            ctx.strokeStyle = '#888888';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(x, yAxisBottom);
-            ctx.lineTo(x, yAxisBottom + 4);
-            ctx.stroke();
-
+            ctx.strokeStyle = '#888888'; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(x, yAxisBottom); ctx.lineTo(x, yAxisBottom + (isCompact ? 2.5 : 4)); ctx.stroke();
             const isFirstOrChanged = (i === 0) || (cfg.chartMotherBarcodes[i] !== cfg.chartMotherBarcodes[i - 1]);
             if (isFirstOrChanged && cfg.chartMotherBarcodes[i] && cfg.chartMotherBarcodes[i] !== 'No Data') {
-                ctx.beginPath();
-                ctx.moveTo(x, yAxisBottom);
-                ctx.lineTo(x, yAxisBottom + 10);
-                ctx.stroke();
-
-                ctx.save();
-                ctx.translate(x, yAxisBottom + 14);
-                ctx.rotate(-35 * Math.PI / 180);
-                ctx.fillStyle = '#333333';
-                ctx.font = 'bold 10px "Microsoft YaHei", sans-serif';
-                ctx.textAlign = 'right';
-                ctx.textBaseline = 'top';
-                ctx.fillText(cfg.chartMotherBarcodes[i], 0, 0);
-                ctx.restore();
+                ctx.beginPath(); ctx.moveTo(x, yAxisBottom); ctx.lineTo(x, yAxisBottom + (isCompact ? 5 : 10)); ctx.stroke();
+                const labelStr = isCompact ? formatTVCompactBarcode(cfg.chartMotherBarcodes[i]) : cfg.chartMotherBarcodes[i];
+                ctx.save(); ctx.translate(x, yAxisBottom + (isCompact ? 6 : 14)); ctx.rotate(-35 * Math.PI / 180);
+                ctx.fillStyle = '#333333'; ctx.font = 'bold ' + (isCompact ? '8px' : '10px') + ' "Microsoft YaHei", sans-serif';
+                ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.fillText(labelStr, 0, 0); ctx.restore();
             }
         }
 
-        // 6. Smooth Data Curve & Points
-        ctx.save();
-        ctx.strokeStyle = '#6395f9';
-        ctx.lineWidth = 2;
+        ctx.save(); ctx.strokeStyle = '#6395f9'; ctx.lineWidth = isCompact ? 1.5 : 2;
         ctx.beginPath();
         validPoints.forEach((pt, idx) => {
-            if (idx === 0) {
-                ctx.moveTo(pt.x, pt.y);
-            } else {
-                const prev = validPoints[idx - 1];
-                const midX = (prev.x + pt.x) / 2;
-                ctx.bezierCurveTo(midX, prev.y, midX, pt.y, pt.x, pt.y);
-            }
+            if (idx === 0) ctx.moveTo(pt.x, pt.y);
+            else { const prev = validPoints[idx - 1], midX = (prev.x + pt.x) / 2; ctx.bezierCurveTo(midX, prev.y, midX, pt.y, pt.x, pt.y); }
         });
         ctx.stroke();
-
         ctx.fillStyle = '#6395f9';
-        validPoints.forEach(pt => {
-            ctx.beginPath();
-            ctx.arc(pt.x, pt.y, 3, 0, Math.PI * 2);
-            ctx.fill();
-        });
+        validPoints.forEach(pt => { ctx.beginPath(); ctx.arc(pt.x, pt.y, isCompact ? 2.2 : 3, 0, Math.PI * 2); ctx.fill(); });
         ctx.restore();
-
         return { pad, plotW, plotH, getX, getY, n };
     }
 
     function drawNativeOfflineSPCChart(container, cfg) {
         container.innerHTML = '';
-        const canvas = document.createElement('canvas');
-        const tooltip = document.createElement('div');
+        const canvas = document.createElement('canvas'), tooltip = document.createElement('div');
         tooltip.className = 'native-spc-tooltip';
-        container.appendChild(canvas);
-        container.appendChild(tooltip);
+        container.appendChild(canvas); container.appendChild(tooltip);
 
         function paintCanvas() {
-            const dpr = window.devicePixelRatio || 1;
-            const width = Math.max(container.clientWidth || 800, 300);
-            const height = 420;
-
-            canvas.width = width * dpr;
-            canvas.height = height * dpr;
-            canvas.style.width = width + 'px';
-            canvas.style.height = height + 'px';
-
-            const ctx = canvas.getContext('2d');
-            ctx.scale(dpr, dpr);
-
+            const dpr = window.devicePixelRatio || 1, rect = container.getBoundingClientRect();
+            const width = Math.max(rect.width || container.clientWidth || 400, 150);
+            const height = Math.max(rect.height || container.clientHeight || 180, 100);
+            canvas.width = width * dpr; canvas.height = height * dpr;
+            canvas.style.width = width + 'px'; canvas.style.height = height + 'px';
+            const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
             const geom = paintSPCPlotOnContext(ctx, width, height, cfg);
 
             canvas.onmousemove = function(ev) {
-                const rect = canvas.getBoundingClientRect();
-                const mx = ev.clientX - rect.left;
-                const my = ev.clientY - rect.top;
-
+                const cRect = canvas.getBoundingClientRect(), mx = ev.clientX - cRect.left, my = ev.clientY - cRect.top;
                 if (!geom || mx < geom.pad.left || mx > geom.pad.left + geom.plotW || my < geom.pad.top || my > geom.pad.top + geom.plotH || geom.n === 0) {
-                    tooltip.style.display = 'none';
-                    return;
+                    tooltip.style.display = 'none'; return;
                 }
-
-                let bestIdx = 0;
-                let minDist = Infinity;
+                let bestIdx = 0, minDist = Infinity;
                 for (let i = 0; i < geom.n; i++) {
                     const d = Math.abs(geom.getX(i) - mx);
-                    if (d < minDist) {
-                        minDist = d;
-                        bestIdx = i;
-                    }
+                    if (d < minDist) { minDist = d; bestIdx = i; }
                 }
-
                 const rawVal = cfg.chartData[bestIdx];
                 const valText = (rawVal !== null && rawVal !== undefined && !isNaN(rawVal)) ? Number(rawVal).toFixed(4) : "No Data";
-                const timeText = cfg.chartTimeMap[bestIdx] ? cfg.formatDate(cfg.chartTimeMap[bestIdx]) : "-";
-                const modelText = cfg.chartModelMap[bestIdx] || "Unknown";
-                const mbText = cfg.chartMotherBarcodes[bestIdx] || "-";
-                const wsText = cfg.chartHoverBarcodes[bestIdx] || "-";
-
-                tooltip.innerHTML = `Model: <b>${modelText}</b><br/>Mother Barcode: <b>${mbText}</b><br/>WS Barcode: ${wsText}<br/>Avg Time: ${timeText}<br/>Avg Value: <b>${valText}</b>`;
+                tooltip.innerHTML = `Model: <b>${cfg.chartModelMap[bestIdx] || "Unknown"}</b><br/>Mother Barcode: <b>${cfg.chartMotherBarcodes[bestIdx] || "-"}</b><br/>WS Barcode: ${cfg.chartHoverBarcodes[bestIdx] || "-"}<br/>Avg Time: ${cfg.chartTimeMap[bestIdx] ? cfg.formatDate(cfg.chartTimeMap[bestIdx]) : "-"}<br/>Avg Value: <b>${valText}</b>`;
                 tooltip.style.display = 'block';
-
                 let leftPos = mx + 15;
-                if (leftPos + tooltip.offsetWidth > width - 10) {
-                    leftPos = mx - tooltip.offsetWidth - 15;
-                }
-                let topPos = Math.max(10, Math.min(height - tooltip.offsetHeight - 10, my - 20));
+                if (leftPos + tooltip.offsetWidth > width - 10) leftPos = mx - tooltip.offsetWidth - 15;
                 tooltip.style.left = leftPos + 'px';
-                tooltip.style.top = topPos + 'px';
+                tooltip.style.top = Math.max(5, Math.min(height - tooltip.offsetHeight - 5, my - 20)) + 'px';
             };
+            canvas.onmouseleave = () => { tooltip.style.display = 'none'; };
+        }
+        paintCanvas();
+        return { resize: paintCanvas, dispose: () => { container.innerHTML = ''; } };
+    }
 
-            canvas.onmouseleave = function() {
-                tooltip.style.display = 'none';
-            };
+    function buildAndMountSingleSPCChart(targetWrapper, line, typeKey, highlightStart, highlightEnd, domPrefix, instancesList, metaList, modelsToVerify) {
+        const displayStartTimeMs = highlightEnd.getTime() - (24 * 60 * 60 * 1000), displayEndTimeMs = highlightEnd.getTime();
+        const isCompactTV = (domPrefix === 'tv');
+        const formatDate = (d) => (!d || isNaN(d.getTime())) ? '' : `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+
+        const baseLine = getLineBaseConfig(line, typeKey);
+        let rawLines = globalData[line] || [];
+        let filteredRows = Array.isArray(rawLines) ? rawLines.filter(r => r && r.time >= displayStartTimeMs && r.time <= displayEndTimeMs) : [];
+
+        let groupedData = {};
+        filteredRows.forEach(row => {
+            if (!row.barcode) return;
+            let exactBarcode = String(row.barcode).trim(); 
+            if(!groupedData[exactBarcode]) groupedData[exactBarcode] = { timeSum: 0, count: 0, airSum: 0, airC: 0, thickSum: 0, thickC: 0, model: null };
+            groupedData[exactBarcode].timeSum += Number(row.time);
+            groupedData[exactBarcode].count++;
+            if(row.airValue !== null && row.airValue !== undefined && !isNaN(row.airValue)) { groupedData[exactBarcode].airSum += Number(row.airValue); groupedData[exactBarcode].airC++; }
+            if(row.thickValue !== null && row.thickValue !== undefined && !isNaN(row.thickValue)) { groupedData[exactBarcode].thickSum += Number(row.thickValue); groupedData[exactBarcode].thickC++; }
+            if(row.model) groupedData[exactBarcode].model = row.model;
+        });
+
+        let chartMotherBarcodes = [], chartHoverBarcodes = [], chartData = [], chartTimeMap = [], chartModelMap = [], activeModelsInWindow = [];
+        let averagedKeys = Object.keys(groupedData).sort((a,b) => {
+            let tA = groupedData[a].timeSum / groupedData[a].count, tB = groupedData[b].timeSum / groupedData[b].count;
+            return tA !== tB ? (tA - tB) : a.localeCompare(b);
+        });
+        
+        averagedKeys.forEach(k => {
+            let g = groupedData[k], avgTime = new Date(g.timeSum / g.count);
+            let targetVal = typeKey === 'air' ? (g.airC > 0 ? g.airSum/g.airC : null) : (g.thickC > 0 ? g.thickSum/g.thickC : null);
+            let mother = getMotherBarcode(k), itemModel = g.model ? formatDisplayModelName(g.model) : null;
+            if (itemModel && !activeModelsInWindow.includes(itemModel)) activeModelsInWindow.push(itemModel);
+            if (g.model && modelsToVerify && !modelsToVerify.includes(g.model)) modelsToVerify.push(g.model);
+            chartMotherBarcodes.push(mother); chartHoverBarcodes.push(k); chartTimeMap.push(avgTime);
+            chartModelMap.push(itemModel || baseLine.defaultModel);
+            chartData.push((targetVal !== null && !isNaN(targetVal)) ? Number(targetVal.toFixed(4)) : null);
+        });
+
+        let displayModelTitle = baseLine.defaultModel, activeUSL = spcConfigs[typeKey].defaultUSL, activeLSL = spcConfigs[typeKey].defaultLSL;
+        if (activeModelsInWindow.length > 0) {
+            displayModelTitle = activeModelsInWindow.join(" / ");
+            let latestKey = getNormalizedModelKey(activeModelsInWindow[activeModelsInWindow.length - 1]);
+            if (latestKey && modelSpecDB[latestKey] && modelSpecDB[latestKey][typeKey]) {
+                activeUSL = Number(modelSpecDB[latestKey][typeKey].USL); activeLSL = Number(modelSpecDB[latestKey][typeKey].LSL);
+            }
+        } else {
+            let lastKnownModel = null;
+            if (Array.isArray(rawLines)) {
+                for (let i = rawLines.length - 1; i >= 0; i--) { if (rawLines[i] && rawLines[i].model) { lastKnownModel = formatDisplayModelName(rawLines[i].model); break; } }
+            }
+            displayModelTitle = lastKnownModel || baseLine.defaultModel;
+            let fallbackKey = getNormalizedModelKey(displayModelTitle);
+            if (fallbackKey && modelSpecDB[fallbackKey] && modelSpecDB[fallbackKey][typeKey]) {
+                activeUSL = Number(modelSpecDB[fallbackKey][typeKey].USL); activeLSL = Number(modelSpecDB[fallbackKey][typeKey].LSL);
+            }
         }
 
-        paintCanvas();
-        return {
-            resize: paintCanvas,
-            dispose: () => { container.innerHTML = ''; }
-        };
+        const lineObj = { id: line, name: baseLine.name, material: displayModelTitle, USL: isNaN(activeUSL) ? spcConfigs[typeKey].defaultUSL : activeUSL, LSL: isNaN(activeLSL) ? spcConfigs[typeKey].defaultLSL : activeLSL };
+        let dynamicStats = calculateSPCStats(chartData, lineObj.USL, lineObj.LSL);
+
+        let boxStartIndex = -1, boxEndIndex = -1, hlStartMs = highlightStart.getTime(), hlEndMs = highlightEnd.getTime();
+        for(let i=0; i<chartTimeMap.length; i++) {
+            let tMs = chartTimeMap[i].getTime();
+            if (tMs >= hlStartMs && tMs <= hlEndMs) { if (boxStartIndex === -1) boxStartIndex = i; boxEndIndex = i; }
+        }
+
+        const customDomId = `${domPrefix}_chart_${typeKey}_${lineObj.id}`;
+        targetWrapper.insertAdjacentHTML('beforeend', buildSPCCard(lineObj, typeKey, dynamicStats, customDomId));
+        const chartDom = document.getElementById(customDomId);
+        if (!chartDom) return;
+
+        let markLinesData = [
+            { yAxis: lineObj.USL, lineStyle: { color: '#ff8c00', width: 2, type: 'solid' } },
+            { yAxis: lineObj.LSL, lineStyle: { color: '#ff8c00', width: 2, type: 'solid' } }
+        ];
+        if (chartData.length > 0 && chartData.some(v => v !== null) && !isNaN(dynamicStats.mean) && dynamicStats.mean !== 0) {
+            markLinesData.push(
+                { yAxis: Number((dynamicStats.mean + 3 * dynamicStats.stdDev).toFixed(4)) || 0, lineStyle: { color: '#ff0000', width: 2, type: 'solid' } },
+                { yAxis: Number((dynamicStats.mean - 3 * dynamicStats.stdDev).toFixed(4)) || 0, lineStyle: { color: '#ff0000', width: 2, type: 'solid' } },
+                { yAxis: Number((dynamicStats.mean + 2 * dynamicStats.stdDev).toFixed(4)) || 0, lineStyle: { color: '#333333', width: 1, type: 'solid' } },
+                { yAxis: Number((dynamicStats.mean - 2 * dynamicStats.stdDev).toFixed(4)) || 0, lineStyle: { color: '#333333', width: 1, type: 'solid' } },
+                { yAxis: Number((dynamicStats.mean + 1 * dynamicStats.stdDev).toFixed(4)) || 0, lineStyle: { color: '#888888', width: 1, type: 'solid' } },
+                { yAxis: Number((dynamicStats.mean - 1 * dynamicStats.stdDev).toFixed(4)) || 0, lineStyle: { color: '#888888', width: 1, type: 'solid' } },
+                { yAxis: Number(dynamicStats.mean.toFixed(4)) || 0, lineStyle: { color: '#0000ff', width: 2, type: 'solid' } }
+            );
+        }
+
+        let yRange = lineObj.USL - lineObj.LSL;
+        if (isNaN(yRange) || yRange <= 0) yRange = 10;
+        let yPad = yRange * 0.12, chartYMax = Number((lineObj.USL + yPad).toFixed(2)) || 100, chartYMin = Number((lineObj.LSL - yPad).toFixed(2)) || 0;
+        const chartPayload = { chartData, chartMotherBarcodes, chartHoverBarcodes, chartTimeMap, chartModelMap, markLinesData, boxStartIndex, boxEndIndex, chartYMin, chartYMax, formatDate };
+
+        if (metaList) metaList.push({ lineObj, typeKey, inspItem: spcConfigs[typeKey].inspItem, dynamicStats, chartDom, chartPayload });
+
+        let renderedWithECharts = false;
+        if (typeof echarts !== 'undefined') {
+            try {
+                const myChart = echarts.init(chartDom);
+                let maData = (boxStartIndex !== -1 && boxEndIndex !== -1 && chartHoverBarcodes[boxStartIndex] && chartHoverBarcodes[boxEndIndex])
+                    ? [[{ xAxis: chartHoverBarcodes[boxStartIndex] }, { xAxis: chartHoverBarcodes[boxEndIndex] }]] : [];
+
+                myChart.setOption({
+                    animation: false,
+                    grid: { top: isCompactTV ? 8 : 15, bottom: isCompactTV ? 52 : 90, left: isCompactTV ? 38 : 45, right: isCompactTV ? 10 : 20 },
+                    tooltip: { 
+                        trigger: 'axis', animation: false, axisPointer: { type: 'cross', animation: false },
+                        formatter: function(params) {
+                            if (!params || !params[0]) return '';
+                            let idx = params[0].dataIndex, rawVal = params[0].value;
+                            let valText = (rawVal !== null && rawVal !== undefined && !isNaN(rawVal)) ? Number(rawVal).toFixed(4) : "No Data";
+                            return `Model: <b>${chartModelMap[idx] || "Unknown"}</b><br/>Mother Barcode: <b>${chartMotherBarcodes[idx] || "-"}</b><br/>WS Barcode: ${chartHoverBarcodes[idx] || "-"}<br/>Avg Time: ${chartTimeMap[idx] ? formatDate(chartTimeMap[idx]) : "-"}<br/>Avg Value: <b>${valText}</b>`;
+                        }
+                    },
+                    xAxis: [
+                        { 
+                            type: 'category', data: chartHoverBarcodes.length > 0 ? chartHoverBarcodes : ['No Data'], position: 'bottom',
+                            axisLabel: { 
+                                rotate: 35, fontSize: isCompactTV ? 8 : 10, fontWeight: 'bold', color: '#333', margin: isCompactTV ? 6 : 15, align: 'right', 
+                                formatter: (v, i) => v === 'No Data' ? '' : (isCompactTV ? formatTVCompactBarcode(chartMotherBarcodes[i] || v) : (chartMotherBarcodes[i] || v)),
+                                interval: (i) => (chartMotherBarcodes.length === 0 || i === 0) ? true : (chartMotherBarcodes[i] !== chartMotherBarcodes[i - 1])
+                            }, 
+                            axisTick: { show: true, alignWithLabel: true, length: isCompactTV ? 5 : 10, interval: (i) => (chartMotherBarcodes.length === 0 || i === 0) ? true : (chartMotherBarcodes[i] !== chartMotherBarcodes[i - 1]) },
+                            axisLine: { lineStyle: { color: '#888' } } 
+                        },
+                        {
+                            type: 'category', data: chartHoverBarcodes.length > 0 ? chartHoverBarcodes : ['No Data'], position: 'bottom',
+                            axisLabel: { show: false }, axisLine: { show: false },
+                            axisTick: { show: true, interval: 0, alignWithLabel: true, length: isCompactTV ? 2.5 : 4, lineStyle: { color: '#888' } }
+                        }
+                    ],
+                    yAxis: { type: 'value', min: chartYMin, max: chartYMax, splitLine: { show: false }, axisLabel: { fontSize: isCompactTV ? 8.5 : 10, formatter: v => Number(v.toFixed(2)) }, axisLine: { show: true, lineStyle: { color: '#888' } } },
+                    series: [{
+                        name: 'Data', type: 'line', smooth: 0.3, data: chartData.length > 0 ? chartData : [null],
+                        symbol: 'circle', symbolSize: isCompactTV ? 3 : 5, itemStyle: { color: '#6395f9' }, lineStyle: { color: '#6395f9', width: isCompactTV ? 1.5 : 2 },
+                        markArea: { silent: true, itemStyle: { color: 'transparent', borderWidth: 2, borderColor: 'red' }, data: maData },
+                        markLine: { symbol: ['none', 'none'], label: { show: false }, silent: true, data: markLinesData }
+                    }]
+                });
+                instancesList.push(myChart);
+                requestAnimationFrame(() => { if (myChart) myChart.resize(); });
+                setTimeout(() => { if (myChart) myChart.resize(); }, 90);
+                renderedWithECharts = true;
+            } catch (e) { renderedWithECharts = false; }
+        }
+        if (!renderedWithECharts) {
+            const nativeInst = drawNativeOfflineSPCChart(chartDom, chartPayload);
+            instancesList.push(nativeInst);
+            setTimeout(() => { if (nativeInst) nativeInst.resize(); }, 90);
+        }
     }
 
     function renderCharts() {
         updateEngineBadge();
         const wrapper = document.getElementById('spcChartsWrapper');
-        
         chartInstances.forEach(inst => { try { inst.dispose(); } catch(e){} }); 
-        chartInstances = [];
-        renderedCardsMeta = [];
-        wrapper.innerHTML = '';
+        chartInstances = []; renderedCardsMeta = []; wrapper.innerHTML = '';
 
         const selectedLines = Array.from(document.querySelectorAll('#lineToggles input:checked')).map(cb => cb.value);
-        if (selectedLines.length === 0) return;
-
         const typeKey = document.querySelector('input[name="viewType"]:checked').value;
-        
-        let highlightStartStr = document.getElementById('highlightStart').value;
-        let highlightEndStr = document.getElementById('highlightEnd').value;
-        
-        if (!highlightStartStr || !highlightEndStr) return;
+        let sStr = document.getElementById('highlightStart').value, eStr = document.getElementById('highlightEnd').value;
+        if (!sStr || !eStr) return;
 
-        let highlightStart = new Date(highlightStartStr);
-        let highlightEnd = new Date(highlightEndStr);
+        let highlightStart = new Date(sStr), highlightEnd = new Date(eStr);
         if (isNaN(highlightStart.getTime()) || isNaN(highlightEnd.getTime())) return;
-        
         if (highlightStart > highlightEnd) {
-            let temp = highlightStart;
-            highlightStart = highlightEnd;
-            highlightEnd = temp;
+            let t = highlightStart; highlightStart = highlightEnd; highlightEnd = t;
             document.getElementById('highlightStart').value = formatForInput(highlightStart);
             document.getElementById('highlightEnd').value = formatForInput(highlightEnd);
         }
 
-        const displayStartTimeMs = highlightEnd.getTime() - (24 * 60 * 60 * 1000);
-        const displayEndTimeMs = highlightEnd.getTime();
-
-        const formatDate = (dateObj) => {
-            if (!dateObj || isNaN(dateObj.getTime())) return '';
-            return `${dateObj.getMonth()+1}/${dateObj.getDate()}/${dateObj.getFullYear()} ${String(dateObj.getHours()).padStart(2,'0')}:${String(dateObj.getMinutes()).padStart(2,'0')}`;
-        };
-
         let modelsToVerify = [];
-
         selectedLines.forEach(line => {
-            try {
-                const baseLine = getLineBaseConfig(line, typeKey);
-                let rawLines = globalData[line] || [];
-                
-                let filteredRows = [];
-                if (Array.isArray(rawLines)) {
-                     filteredRows = rawLines.filter(row => row && row.time >= displayStartTimeMs && row.time <= displayEndTimeMs);
-                }
-
-                let groupedData = {};
-                filteredRows.forEach(row => {
-                    if (!row.barcode) return;
-                    let exactBarcode = String(row.barcode).trim(); 
-                    if(!groupedData[exactBarcode]) {
-                        groupedData[exactBarcode] = { timeSum: 0, count: 0, airSum: 0, airC: 0, thickSum: 0, thickC: 0, model: null };
-                    }
-                    groupedData[exactBarcode].timeSum += Number(row.time);
-                    groupedData[exactBarcode].count++;
-                    if(row.airValue !== null && row.airValue !== undefined && !isNaN(row.airValue)) {
-                        groupedData[exactBarcode].airSum += Number(row.airValue);
-                        groupedData[exactBarcode].airC++;
-                    }
-                    if(row.thickValue !== null && row.thickValue !== undefined && !isNaN(row.thickValue)) {
-                        groupedData[exactBarcode].thickSum += Number(row.thickValue);
-                        groupedData[exactBarcode].thickC++;
-                    }
-                    if(row.model) {
-                        groupedData[exactBarcode].model = row.model;
-                    }
-                });
-
-                let chartMotherBarcodes = []; 
-                let chartHoverBarcodes = [];  
-                let chartData = [];
-                let chartTimeMap = [];
-                let chartModelMap = [];
-                let activeModelsInWindow = [];
-                
-                let averagedKeys = Object.keys(groupedData).sort((a,b) => {
-                    let avgTimeA = groupedData[a].timeSum / groupedData[a].count;
-                    let avgTimeB = groupedData[b].timeSum / groupedData[b].count;
-                    if (avgTimeA !== avgTimeB) return avgTimeA - avgTimeB; 
-                    return a.localeCompare(b); 
-                });
-                
-                averagedKeys.forEach(k => {
-                    let g = groupedData[k];
-                    let avgTime = new Date(g.timeSum / g.count);
-                    let targetVal = typeKey === 'air' ? (g.airC > 0 ? g.airSum/g.airC : null) : (g.thickC > 0 ? g.thickSum/g.thickC : null);
-                    
-                    let mother = getMotherBarcode(k);
-                    let itemModel = g.model ? formatDisplayModelName(g.model) : null;
-                    if (itemModel && !activeModelsInWindow.includes(itemModel)) {
-                        activeModelsInWindow.push(itemModel);
-                    }
-                    if (g.model && !modelsToVerify.includes(g.model)) {
-                        modelsToVerify.push(g.model);
-                    }
-                    
-                    chartMotherBarcodes.push(mother); 
-                    chartHoverBarcodes.push(k);       
-                    chartTimeMap.push(avgTime);
-                    chartModelMap.push(itemModel || baseLine.defaultModel);
-                    
-                    if(targetVal !== null && !isNaN(targetVal)) {
-                        chartData.push(Number(targetVal.toFixed(4)));
-                    } else {
-                        chartData.push(null); 
-                    }
-                });
-
-                let displayModelTitle = baseLine.defaultModel;
-                let activeUSL = spcConfigs[typeKey].defaultUSL;
-                let activeLSL = spcConfigs[typeKey].defaultLSL;
-
-                if (activeModelsInWindow.length > 0) {
-                    displayModelTitle = activeModelsInWindow.join(" / ");
-                    let latestModelRaw = activeModelsInWindow[activeModelsInWindow.length - 1];
-                    let latestKey = getNormalizedModelKey(latestModelRaw);
-                    if (latestKey && modelSpecDB[latestKey] && modelSpecDB[latestKey][typeKey]) {
-                        activeUSL = Number(modelSpecDB[latestKey][typeKey].USL);
-                        activeLSL = Number(modelSpecDB[latestKey][typeKey].LSL);
-                    }
-                } else {
-                    let lastKnownModel = null;
-                    if (Array.isArray(rawLines)) {
-                        for (let i = rawLines.length - 1; i >= 0; i--) {
-                            if (rawLines[i] && rawLines[i].model) { lastKnownModel = formatDisplayModelName(rawLines[i].model); break; }
-                        }
-                    }
-                    displayModelTitle = lastKnownModel || baseLine.defaultModel;
-                    let fallbackKey = getNormalizedModelKey(displayModelTitle);
-                    if (fallbackKey && modelSpecDB[fallbackKey] && modelSpecDB[fallbackKey][typeKey]) {
-                        activeUSL = Number(modelSpecDB[fallbackKey][typeKey].USL);
-                        activeLSL = Number(modelSpecDB[fallbackKey][typeKey].LSL);
-                    }
-                }
-
-                if (isNaN(activeUSL)) activeUSL = spcConfigs[typeKey].defaultUSL;
-                if (isNaN(activeLSL)) activeLSL = spcConfigs[typeKey].defaultLSL;
-
-                const lineObj = {
-                    id: line,
-                    name: baseLine.name,
-                    material: displayModelTitle,
-                    USL: activeUSL,
-                    LSL: activeLSL
-                };
-
-                let dynamicStats = calculateSPCStats(chartData, lineObj.USL, lineObj.LSL);
-
-                let boxStartIndex = -1, boxEndIndex = -1;
-                let hlStartMs = highlightStart.getTime();
-                let hlEndMs = highlightEnd.getTime();
-                for(let i=0; i<chartTimeMap.length; i++) {
-                    let tMs = chartTimeMap[i].getTime();
-                    if (tMs >= hlStartMs && tMs <= hlEndMs) {
-                        if (boxStartIndex === -1) boxStartIndex = i;
-                        boxEndIndex = i; 
-                    }
-                }
-
-                wrapper.insertAdjacentHTML('beforeend', buildSPCCard(lineObj, typeKey, dynamicStats));
-                const chartDom = document.getElementById(`chart_${typeKey}_${lineObj.id}`);
-                if (!chartDom) return;
-
-                let markLinesData = [
-                    { yAxis: lineObj.USL, lineStyle: { color: '#ff8c00', width: 2, type: 'solid' } },
-                    { yAxis: lineObj.LSL, lineStyle: { color: '#ff8c00', width: 2, type: 'solid' } }
-                ];
-
-                if (chartData.length > 0 && chartData.some(v => v !== null) && !isNaN(dynamicStats.mean) && dynamicStats.mean !== 0) {
-                    const ucl = Number((dynamicStats.mean + (3 * dynamicStats.stdDev)).toFixed(4)) || 0;
-                    const lcl = Number((dynamicStats.mean - (3 * dynamicStats.stdDev)).toFixed(4)) || 0;
-                    const p2s = Number((dynamicStats.mean + (2 * dynamicStats.stdDev)).toFixed(4)) || 0;
-                    const m2s = Number((dynamicStats.mean - (2 * dynamicStats.stdDev)).toFixed(4)) || 0;
-                    const p1s = Number((dynamicStats.mean + (1 * dynamicStats.stdDev)).toFixed(4)) || 0;
-                    const m1s = Number((dynamicStats.mean - (1 * dynamicStats.stdDev)).toFixed(4)) || 0;
-                    const meanLine = Number(dynamicStats.mean.toFixed(4)) || 0;
-
-                    markLinesData.push(
-                        { yAxis: ucl, lineStyle: { color: '#ff0000', width: 2, type: 'solid' } },
-                        { yAxis: lcl, lineStyle: { color: '#ff0000', width: 2, type: 'solid' } },
-                        { yAxis: p2s, lineStyle: { color: '#333333', width: 1, type: 'solid' } },
-                        { yAxis: m2s, lineStyle: { color: '#333333', width: 1, type: 'solid' } },
-                        { yAxis: p1s, lineStyle: { color: '#888888', width: 1, type: 'solid' } },
-                        { yAxis: m1s, lineStyle: { color: '#888888', width: 1, type: 'solid' } },
-                        { yAxis: meanLine, lineStyle: { color: '#0000ff', width: 2, type: 'solid' } }
-                    );
-                }
-
-                let yRange = lineObj.USL - lineObj.LSL;
-                if (isNaN(yRange) || yRange <= 0) yRange = 10;
-                let yPad = yRange * 0.12; 
-                let chartYMax = Number((lineObj.USL + yPad).toFixed(2)) || 100;
-                let chartYMin = Number((lineObj.LSL - yPad).toFixed(2)) || 0;
-
-                const chartPayload = {
-                    chartData, chartMotherBarcodes, chartHoverBarcodes,
-                    chartTimeMap, chartModelMap, markLinesData,
-                    boxStartIndex, boxEndIndex, chartYMin, chartYMax, formatDate
-                };
-
-                // Save metadata for our 100% Native Image Stitcher
-                renderedCardsMeta.push({
-                    lineObj,
-                    typeKey,
-                    inspItem: spcConfigs[typeKey].inspItem,
-                    dynamicStats,
-                    chartDom,
-                    chartPayload
-                });
-
-                let renderedWithECharts = false;
-                if (typeof echarts !== 'undefined') {
-                    try {
-                        let cw = chartDom.parentElement.clientWidth - 145;
-                        if (cw < 100) cw = 800; 
-                        const myChart = echarts.init(chartDom, null, { width: cw, height: 420 });
-
-                        let maData = [];
-                        if (boxStartIndex !== -1 && boxEndIndex !== -1 && chartHoverBarcodes.length > 0) {
-                            let catStart = chartHoverBarcodes[boxStartIndex];
-                            let catEnd = chartHoverBarcodes[boxEndIndex];
-                            if (catStart && catEnd) {
-                                maData = [[{ xAxis: catStart }, { xAxis: catEnd }]];
-                            }
-                        }
-
-                        myChart.setOption({
-                            animation: false,
-                            grid: { top: 15, bottom: 90, left: 45, right: 20 },
-                            tooltip: { 
-                                trigger: 'axis', 
-                                animation: false, 
-                                axisPointer: { type: 'cross', animation: false },
-                                formatter: function(params) {
-                                    if (!params || !params[0]) return '';
-                                    let idx = params[0].dataIndex;
-                                    let rawVal = params[0].value;
-                                    let valText = (rawVal !== null && rawVal !== undefined && !isNaN(rawVal)) ? Number(rawVal).toFixed(4) : "No Data";
-                                    let timeText = chartTimeMap[idx] ? formatDate(chartTimeMap[idx]) : "-";
-                                    let modelText = chartModelMap[idx] || "Unknown";
-                                    let mbText = chartMotherBarcodes[idx] || "-";
-                                    let wsText = chartHoverBarcodes[idx] || "-";
-                                    return `Model: <b>${modelText}</b><br/>Mother Barcode: <b>${mbText}</b><br/>WS Barcode: ${wsText}<br/>Avg Time: ${timeText}<br/>Avg Value: <b>${valText}</b>`;
-                                }
-                            },
-                            xAxis: [
-                                { 
-                                    type: 'category', 
-                                    data: chartHoverBarcodes.length > 0 ? chartHoverBarcodes : ['No Data'], 
-                                    position: 'bottom',
-                                    axisLabel: { 
-                                        rotate: 35, fontSize: 10, fontWeight: 'bold', color: '#333', margin: 15, align: 'right', 
-                                        formatter: function (value, index) {
-                                            if (value === 'No Data') return '';
-                                            return chartMotherBarcodes[index] || value;
-                                        },
-                                        interval: function (index) {
-                                            if (chartMotherBarcodes.length === 0) return true;
-                                            if (index === 0) return true;
-                                            return chartMotherBarcodes[index] !== chartMotherBarcodes[index - 1];
-                                        }
-                                    }, 
-                                    axisTick: {
-                                        show: true, alignWithLabel: true, length: 10, 
-                                        interval: function (index) {
-                                            if (chartMotherBarcodes.length === 0) return true;
-                                            if (index === 0) return true;
-                                            return chartMotherBarcodes[index] !== chartMotherBarcodes[index - 1];
-                                        }
-                                    },
-                                    axisLine: { lineStyle: { color: '#888' } } 
-                                },
-                                {
-                                    type: 'category',
-                                    data: chartHoverBarcodes.length > 0 ? chartHoverBarcodes : ['No Data'],
-                                    position: 'bottom',
-                                    axisLabel: { show: false }, axisLine: { show: false },  
-                                    axisTick: { show: true, interval: 0, alignWithLabel: true, length: 4, lineStyle: { color: '#888' } }
-                                }
-                            ],
-                            yAxis: { 
-                                type: 'value', min: chartYMin, max: chartYMax, splitLine: { show: false }, 
-                                axisLabel: { fontSize: 10, formatter: function(value) { return Number(value.toFixed(2)); } }, 
-                                axisLine: { show: true, lineStyle: { color: '#888' } } 
-                            },
-                            series: [{
-                                name: 'Data', type: 'line', smooth: 0.3,
-                                data: chartData.length > 0 ? chartData : [null],
-                                symbol: 'circle', symbolSize: 5,
-                                itemStyle: { color: '#6395f9' }, lineStyle: { color: '#6395f9', width: 2 },
-                                markArea: { 
-                                    silent: true,
-                                    itemStyle: { color: 'transparent', borderWidth: 2, borderColor: 'red' }, 
-                                    data: maData 
-                                },
-                                markLine: {
-                                    symbol: ['none', 'none'], label: { show: false }, silent: true,
-                                    data: markLinesData
-                                }
-                            }]
-                        });
-
-                        chartInstances.push(myChart);
-                        setTimeout(() => { if (myChart) myChart.resize(); }, 50);
-                        renderedWithECharts = true;
-                    } catch (ecErr) {
-                        console.warn("ECharts failed, switching to Native Offline Canvas:", ecErr);
-                        renderedWithECharts = false;
-                    }
-                }
-
-                if (!renderedWithECharts) {
-                    const nativeInst = drawNativeOfflineSPCChart(chartDom, chartPayload);
-                    chartInstances.push(nativeInst);
-                }
-
-            } catch (err) {
-                console.error("Error rendering line " + line + ":", err);
-            }
+            try { buildAndMountSingleSPCChart(wrapper, line, typeKey, highlightStart, highlightEnd, 'std', chartInstances, renderedCardsMeta, modelsToVerify); } catch (err) {}
         });
-
-        if (modelsToVerify.length > 0) {
-            queueUnknownModelsForPrompt(modelsToVerify);
-        }
+        if (isTVMode) renderTVStreamCharts();
+        if (modelsToVerify.length > 0) queueUnknownModelsForPrompt(modelsToVerify);
     }
 
-    window.addEventListener('resize', () => chartInstances.forEach(inst => inst && inst.resize()));
+    // --- TV STREAM MODE ---
+    function renderTVStreamCharts() {
+        tvChartInstances.forEach(inst => { try { inst.dispose(); } catch(e){} });
+        tvChartInstances = [];
+        const colAir = document.getElementById('tvColAir'), colThick = document.getElementById('tvColThick');
+        if (!colAir || !colThick) return;
+        colAir.innerHTML = ''; colThick.innerHTML = '';
+
+        let sStr = document.getElementById('highlightStart').value, eStr = document.getElementById('highlightEnd').value;
+        if (!sStr || !eStr) return;
+        let highlightStart = new Date(sStr), highlightEnd = new Date(eStr);
+        if (isNaN(highlightStart.getTime()) || isNaN(highlightEnd.getTime())) return;
+
+        const badge = document.getElementById('tvTimeframeBadge');
+        if (badge) badge.textContent = `Red Box Shift: ${sStr.replace('T', ' ')}  ➔  ${eStr.replace('T', ' ')}`;
+
+        ['W1', 'W2', 'W3', 'W4'].forEach(line => {
+            buildAndMountSingleSPCChart(colAir, line, 'air', highlightStart, highlightEnd, 'tv', tvChartInstances, null, null);
+            buildAndMountSingleSPCChart(colThick, line, 'thick', highlightStart, highlightEnd, 'tv', tvChartInstances, null, null);
+        });
+        [60, 200, 450].forEach(d => setTimeout(() => tvChartInstances.forEach(inst => inst && inst.resize()), d));
+    }
+
+    function enterTVStreamMode() {
+        if (isTVMode) return;
+        isTVMode = true; isAutoFollowLatest = true;
+        document.body.classList.add('tv-mode-active');
+        try { history.pushState({ tvStreamMode: true }, '', '#tv-stream'); } catch (e) {}
+        const docEl = document.documentElement;
+        try {
+            if (docEl.requestFullscreen) docEl.requestFullscreen().catch(() => {});
+            else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
+        } catch (e) {}
+        setTimeout(renderTVStreamCharts, 60);
+    }
+
+    function exitTVStreamMode(fromPopState = false) {
+        if (!isTVMode) return;
+        isTVMode = false;
+        document.body.classList.remove('tv-mode-active');
+        tvChartInstances.forEach(inst => { try { inst.dispose(); } catch(e){} });
+        tvChartInstances = [];
+        try {
+            if (document.fullscreenElement || document.webkitFullscreenElement) {
+                if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            }
+        } catch (e) {}
+        if (!fromPopState && window.location.hash === '#tv-stream') { try { history.back(); } catch (e) {} }
+        setTimeout(() => chartInstances.forEach(inst => inst && inst.resize()), 80);
+    }
+
+    document.getElementById('tvStreamBtn').addEventListener('click', enterTVStreamMode);
+    window.addEventListener('keydown', e => {
+        if (isTVMode && (e.key === 'Escape' || e.key === 'Esc' || e.key === 'BrowserBack' || e.key === 'GoBack' || e.keyCode === 27 || (e.key === 'Backspace' && e.target === document.body))) {
+            e.preventDefault(); exitTVStreamMode();
+        }
+    });
+    window.addEventListener('popstate', () => { if (isTVMode) exitTVStreamMode(true); });
+    document.addEventListener('fullscreenchange', () => {
+        if (!document.fullscreenElement && isTVMode) exitTVStreamMode();
+        else if (document.fullscreenElement && isTVMode) setTimeout(() => tvChartInstances.forEach(inst => inst && inst.resize()), 100);
+    });
+    window.addEventListener('resize', () => {
+        chartInstances.forEach(inst => inst && inst.resize());
+        if (isTVMode) tvChartInstances.forEach(inst => inst && inst.resize());
+    });
     document.querySelectorAll('#lineToggles input').forEach(cb => cb.addEventListener('change', renderCharts));
-    
-    // ============================================================================
-    // 100% NATIVE DASHBOARD IMAGE STITCHER (NO EXTERNAL HTML2CANVAS NEEDED!)
-    // ============================================================================
+
+    // --- NATIVE DASHBOARD IMAGE STITCHER ---
     function buildFullDashboardCanvas() {
         if (!renderedCardsMeta || renderedCardsMeta.length === 0) return null;
-
-        const scale = 2; // High-DPI crisp image
-        const outerPad = 14;
-        const cardGap = 15;
-        const cardW = 1350;
-        const headerH = 44;
-        const bodyH = 420;
-        const cardH = headerH + bodyH;
-        const rightPanelW = 145;
-        const plotAreaW = cardW - rightPanelW;
-
-        const totalW = cardW + outerPad * 2;
-        const totalH = outerPad * 2 + renderedCardsMeta.length * cardH + (renderedCardsMeta.length - 1) * cardGap;
+        const scale = 2, outerPad = 14, cardGap = 15, cardW = 1350, headerH = 44, bodyH = 420, cardH = headerH + bodyH, rightPanelW = 145, plotAreaW = cardW - rightPanelW;
+        const totalW = cardW + outerPad * 2, totalH = outerPad * 2 + renderedCardsMeta.length * cardH + (renderedCardsMeta.length - 1) * cardGap;
 
         const masterCanvas = document.createElement('canvas');
-        masterCanvas.width = totalW * scale;
-        masterCanvas.height = totalH * scale;
-        const ctx = masterCanvas.getContext('2d');
-        ctx.scale(scale, scale);
-
-        // Background
-        ctx.fillStyle = '#f5f5f5';
-        ctx.fillRect(0, 0, totalW, totalH);
+        masterCanvas.width = totalW * scale; masterCanvas.height = totalH * scale;
+        const ctx = masterCanvas.getContext('2d'); ctx.scale(scale, scale);
+        ctx.fillStyle = '#f5f5f5'; ctx.fillRect(0, 0, totalW, totalH);
 
         renderedCardsMeta.forEach((meta, idx) => {
-            const x0 = outerPad;
-            const y0 = outerPad + idx * (cardH + cardGap);
+            const x0 = outerPad, y0 = outerPad + idx * (cardH + cardGap);
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(x0, y0, cardW, cardH);
+            ctx.strokeStyle = '#cccccc'; ctx.lineWidth = 1; ctx.strokeRect(x0, y0, cardW, cardH);
+            ctx.fillStyle = '#fcfcfc'; ctx.fillRect(x0, y0, cardW, headerH);
+            ctx.beginPath(); ctx.moveTo(x0, y0 + headerH); ctx.lineTo(x0 + cardW, y0 + headerH); ctx.stroke();
 
-            // Card Surface & Border
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(x0, y0, cardW, cardH);
-            ctx.strokeStyle = '#cccccc';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(x0, y0, cardW, cardH);
+            ctx.fillStyle = '#111111'; ctx.font = 'bold 16px "Microsoft YaHei", sans-serif';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(`Production Line : ${meta.lineObj.name}   |   Model : ${meta.lineObj.material}   |   Inspection Item : ${meta.inspItem}`, x0 + cardW / 2, y0 + headerH / 2);
 
-            // Card Title Header
-            ctx.fillStyle = '#fcfcfc';
-            ctx.fillRect(x0, y0, cardW, headerH);
-            ctx.beginPath();
-            ctx.moveTo(x0, y0 + headerH);
-            ctx.lineTo(x0 + cardW, y0 + headerH);
-            ctx.stroke();
-
-            ctx.fillStyle = '#111111';
-            ctx.font = 'bold 16px "Microsoft YaHei", "Segoe UI", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            const titleText = `Production Line : ${meta.lineObj.name}   |   Model : ${meta.lineObj.material}   |   Inspection Item : ${meta.inspItem}`;
-            ctx.fillText(titleText, x0 + cardW / 2, y0 + headerH / 2);
-
-            // Draw Chart Canvas Area
-            const plotX = x0;
-            const plotY = y0 + headerH;
-            ctx.save();
-            ctx.translate(plotX, plotY);
-            // Always paint using our crisp native vector plotter so it never fails or blurs
+            ctx.save(); ctx.translate(x0, y0 + headerH);
             paintSPCPlotOnContext(ctx, plotAreaW, bodyH, meta.chartPayload);
             ctx.restore();
 
-            // Draw Right Info Panel
-            const rpX = x0 + plotAreaW;
-            const rpY = y0 + headerH;
-            ctx.fillStyle = '#fcfcfc';
-            ctx.fillRect(rpX, rpY, rightPanelW, bodyH);
-            ctx.strokeStyle = '#cccccc';
-            ctx.beginPath();
-            ctx.moveTo(rpX, rpY);
-            ctx.lineTo(rpX, rpY + bodyH);
-            ctx.stroke();
+            const rpX = x0 + plotAreaW, rpY = y0 + headerH;
+            ctx.fillStyle = '#fcfcfc'; ctx.fillRect(rpX, rpY, rightPanelW, bodyH);
+            ctx.strokeStyle = '#cccccc'; ctx.beginPath(); ctx.moveTo(rpX, rpY); ctx.lineTo(rpX, rpY + bodyH); ctx.stroke();
 
-            const uslNum = Number(meta.lineObj.USL) || 0;
-            const lslNum = Number(meta.lineObj.LSL) || 0;
-            const ds = meta.dynamicStats;
-
+            const uslNum = Number(meta.lineObj.USL) || 0, lslNum = Number(meta.lineObj.LSL) || 0, ds = meta.dynamicStats;
             if (ds.cpk === 'N/A' && ds.mean === 0 && ds.stdDev === 0) {
-                ctx.fillStyle = '#333';
-                ctx.font = '11px "Microsoft YaHei", sans-serif';
-                ctx.textAlign = 'left';
-                ctx.fillText(`上限: ${uslNum.toFixed(4)}`, rpX + 28, rpY + 18);
-                ctx.fillText(`下限: ${lslNum.toFixed(4)}`, rpX + 28, rpY + 36);
-                ctx.fillStyle = '#777';
-                ctx.textAlign = 'center';
+                ctx.fillStyle = '#777'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
                 ctx.fillText('No data in timeframe', rpX + rightPanelW / 2, rpY + bodyH / 2);
             } else {
                 const legendItems = [
@@ -1737,169 +1526,67 @@
                     { color: '#ff0000', h: 2, text: `-3σ: ${(ds.mean - 3 * ds.stdDev).toFixed(4)}` },
                     { color: '#ff8c00', h: 2, text: `下限: ${lslNum.toFixed(4)}` }
                 ];
-
                 let curY = rpY + 14;
-                ctx.font = '11px "Microsoft YaHei", sans-serif';
-                ctx.textAlign = 'left';
-                ctx.textBaseline = 'middle';
-
+                ctx.font = '11px "Microsoft YaHei", sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
                 legendItems.forEach(item => {
-                    ctx.fillStyle = item.color;
-                    ctx.fillRect(rpX + 8, curY - item.h / 2, 16, item.h);
-                    if (item.dot) {
-                        ctx.beginPath();
-                        ctx.arc(rpX + 16, curY, 3, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                    ctx.fillStyle = '#222222';
-                    ctx.fillText(item.text, rpX + 30, curY);
-                    curY += 17;
+                    ctx.fillStyle = item.color; ctx.fillRect(rpX + 8, curY - item.h / 2, 16, item.h);
+                    if (item.dot) { ctx.beginPath(); ctx.arc(rpX + 16, curY, 3, 0, Math.PI * 2); ctx.fill(); }
+                    ctx.fillStyle = '#222222'; ctx.fillText(item.text, rpX + 30, curY); curY += 17;
                 });
-
-                // Dashed Divider
-                ctx.save();
-                ctx.strokeStyle = '#cccccc';
-                ctx.setLineDash([3, 3]);
-                ctx.beginPath();
-                ctx.moveTo(rpX + 6, curY);
-                ctx.lineTo(rpX + rightPanelW - 6, curY);
-                ctx.stroke();
-                ctx.restore();
-
                 curY += 12;
-                const infoBoxes = [
-                    { label: '刷新频率', val: '120' },
-                    { label: '规格上限', val: uslNum.toFixed(4) },
-                    { label: '规格下限', val: lslNum.toFixed(4) }
-                ];
-
-                infoBoxes.forEach(b => {
-                    ctx.fillStyle = '#333333';
-                    ctx.font = 'bold 11px "Microsoft YaHei", sans-serif';
-                    ctx.textAlign = 'left';
-                    ctx.fillText(b.label, rpX + 8, curY);
-                    curY += 10;
-
-                    ctx.fillStyle = '#e9e9e9';
-                    ctx.fillRect(rpX + 8, curY, rightPanelW - 16, 20);
-                    ctx.strokeStyle = '#dcdcdc';
-                    ctx.strokeRect(rpX + 8, curY, rightPanelW - 16, 20);
-
-                    ctx.fillStyle = '#333333';
-                    ctx.font = '12px monospace';
-                    ctx.fillText(b.val, rpX + 12, curY + 11);
-                    curY += 28;
+                [{ label: '刷新频率', val: '120' }, { label: '规格上限', val: uslNum.toFixed(4) }, { label: '规格下限', val: lslNum.toFixed(4) }].forEach(b => {
+                    ctx.fillStyle = '#333'; ctx.font = 'bold 11px "Microsoft YaHei", sans-serif'; ctx.fillText(b.label, rpX + 8, curY); curY += 10;
+                    ctx.fillStyle = '#e9e9e9'; ctx.fillRect(rpX + 8, curY, rightPanelW - 16, 20);
+                    ctx.strokeStyle = '#dcdcdc'; ctx.strokeRect(rpX + 8, curY, rightPanelW - 16, 20);
+                    ctx.fillStyle = '#333'; ctx.font = '12px monospace'; ctx.fillText(b.val, rpX + 12, curY + 11); curY += 28;
                 });
-
-                // Red CPK Box at bottom
-                const cpkBoxH = 44;
-                const cpkY = rpY + bodyH - cpkBoxH - 10;
-                ctx.fillStyle = '#fff0f0';
-                ctx.fillRect(rpX + 8, cpkY, rightPanelW - 16, cpkBoxH);
-                ctx.strokeStyle = '#ff0000';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(rpX + 8, cpkY, rightPanelW - 16, cpkBoxH);
-
-                ctx.fillStyle = '#ff0000';
-                ctx.font = 'bold 13px "Microsoft YaHei", sans-serif';
-                ctx.textAlign = 'center';
+                const cpkBoxH = 44, cpkY = rpY + bodyH - cpkBoxH - 10;
+                ctx.fillStyle = '#fff0f0'; ctx.fillRect(rpX + 8, cpkY, rightPanelW - 16, cpkBoxH);
+                ctx.strokeStyle = '#ff0000'; ctx.lineWidth = 2; ctx.strokeRect(rpX + 8, cpkY, rightPanelW - 16, cpkBoxH);
+                ctx.fillStyle = '#ff0000'; ctx.font = 'bold 13px "Microsoft YaHei", sans-serif'; ctx.textAlign = 'center';
                 ctx.fillText('CPK', rpX + rightPanelW / 2, cpkY + 14);
-                ctx.font = 'bold 15px monospace';
-                ctx.fillText(String(ds.cpk), rpX + rightPanelW / 2, cpkY + 32);
+                ctx.font = 'bold 15px monospace'; ctx.fillText(String(ds.cpk), rpX + rightPanelW / 2, cpkY + 32);
             }
         });
-
         return masterCanvas;
     }
 
-    // Legacy Rich-HTML Selection Image Copy (Bypasses file:// navigator.clipboard block in Chrome/Edge)
     function copyDataUrlViaRichSelection(dataUrl) {
         try {
             const div = document.createElement('div');
-            div.contentEditable = 'true';
-            div.style.position = 'fixed';
-            div.style.left = '-9999px';
-            div.style.top = '0';
-            div.style.opacity = '0';
-
-            const img = document.createElement('img');
-            img.src = dataUrl;
-            div.appendChild(img);
-            document.body.appendChild(div);
-
-            const range = document.createRange();
-            range.selectNodeContents(div);
-            const sel = window.getSelection();
-            sel.removeAllRanges();
-            sel.addRange(range);
-
-            const ok = document.execCommand('copy');
-            sel.removeAllRanges();
-            document.body.removeChild(div);
+            div.contentEditable = 'true'; div.style.position = 'fixed'; div.style.left = '-9999px'; div.style.opacity = '0';
+            const img = document.createElement('img'); img.src = dataUrl; div.appendChild(img); document.body.appendChild(div);
+            const range = document.createRange(); range.selectNodeContents(div);
+            const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+            const ok = document.execCommand('copy'); sel.removeAllRanges(); document.body.removeChild(div);
             return ok;
-        } catch (e) {
-            return false;
-        }
-    }
-
-    function openImageCopyFallbackModal(dataUrl) {
-        const previewImg = document.getElementById('fallbackPreviewImg');
-        previewImg.src = dataUrl;
-        document.getElementById('imageCopyModalOverlay').style.display = 'flex';
-
-        document.getElementById('modalDownloadPngBtn').onclick = function() {
-            const a = document.createElement('a');
-            a.href = dataUrl;
-            a.download = `SPC_Dashboard_${new Date().toISOString().slice(0,10)}.png`;
-            a.click();
-        };
+        } catch (e) { return false; }
     }
 
     document.getElementById('copyImageBtn').addEventListener('click', async function() {
-        const btn = this;
-        const orig = btn.innerHTML;
-        btn.innerHTML = '📸 Capturing...';
-
+        const btn = this, orig = btn.innerHTML; btn.innerHTML = '📸 Capturing...';
         try {
             const masterCanvas = buildFullDashboardCanvas();
-            if (!masterCanvas) {
-                alert("No active charts on screen to copy.");
-                btn.innerHTML = orig;
-                return;
-            }
-
+            if (!masterCanvas) { alert("No active charts on screen to copy."); btn.innerHTML = orig; return; }
             const dataUrl = masterCanvas.toDataURL('image/png');
-
-            // TIER 1: Try Modern ClipboardItem API (Works on https://hadzhirazali.github.io)
             if (navigator.clipboard && window.ClipboardItem) {
                 try {
                     const blob = await new Promise(res => masterCanvas.toBlob(res, 'image/png'));
                     await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-                    btn.innerHTML = '✅ Copied!';
-                    setTimeout(() => btn.innerHTML = orig, 2500);
-                    return;
-                } catch (clipErr) {
-                    console.warn("ClipboardItem blocked (likely file:// or IT policy), trying Tier 2:", clipErr);
-                }
+                    btn.innerHTML = '✅ Copied!'; setTimeout(() => btn.innerHTML = orig, 2500); return;
+                } catch (e) {}
             }
-
-            // TIER 2: Try Synchronous Rich-HTML Selection Copy (Works on local file:// in many browsers)
             if (copyDataUrlViaRichSelection(dataUrl)) {
-                btn.innerHTML = '✅ Copied!';
-                setTimeout(() => btn.innerHTML = orig, 2500);
-                return;
+                btn.innerHTML = '✅ Copied!'; setTimeout(() => btn.innerHTML = orig, 2500); return;
             }
-
-            // TIER 3: Open Instant Right-Click Copy & Download Modal so user is NEVER stuck
             btn.innerHTML = '📸 Ready (See Popup)';
-            openImageCopyFallbackModal(dataUrl);
+            document.getElementById('fallbackPreviewImg').src = dataUrl;
+            document.getElementById('imageCopyModalOverlay').style.display = 'flex';
+            document.getElementById('modalDownloadPngBtn').onclick = () => {
+                const a = document.createElement('a'); a.href = dataUrl; a.download = `SPC_Dashboard_${new Date().toISOString().slice(0,10)}.png`; a.click();
+            };
             setTimeout(() => btn.innerHTML = orig, 3000);
-
-        } catch (err) {
-            console.error("Image capture error:", err);
-            btn.innerHTML = '❌ Error';
-            setTimeout(() => btn.innerHTML = orig, 2000);
-        }
+        } catch (err) { btn.innerHTML = '❌ Error'; setTimeout(() => btn.innerHTML = orig, 2000); }
     });
 </script>
 </body>
