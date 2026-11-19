@@ -1343,7 +1343,23 @@
         });
 
         let chartMotherBarcodes = [], chartHoverBarcodes = [], chartData = [], chartTimeMap = [], chartModelMap = [], activeModelsInWindow = [];
+
+        // Group all workstations of the same Mother Roll together so labels never interleave/overlap
+        let motherTimeMap = {};
+        Object.keys(groupedData).forEach(k => {
+            let m = getMotherBarcode(k);
+            let avgT = groupedData[k].timeSum / groupedData[k].count;
+            if (motherTimeMap[m] === undefined || avgT < motherTimeMap[m]) {
+                motherTimeMap[m] = avgT;
+            }
+        });
+
         let averagedKeys = Object.keys(groupedData).sort((a,b) => {
+            let mA = getMotherBarcode(a), mB = getMotherBarcode(b);
+            if (mA !== mB) {
+                let mtA = motherTimeMap[mA], mtB = motherTimeMap[mB];
+                return mtA !== mtB ? (mtA - mtB) : mA.localeCompare(mB);
+            }
             let tA = groupedData[a].timeSum / groupedData[a].count, tB = groupedData[b].timeSum / groupedData[b].count;
             return tA !== tB ? (tA - tB) : a.localeCompare(b);
         });
