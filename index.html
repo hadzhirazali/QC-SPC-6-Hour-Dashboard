@@ -563,6 +563,7 @@
                 globalData[line] = ld.filter(item => item && item.barcode);
                 globalData[line].forEach(item => {
                     if (typeof item.time === 'string') item.time = new Date(item.time).getTime();
+                    item.time = sanitizeBarcodeTimestamp(item.barcode, Number(item.time));
                     if (item.airValue !== undefined && item.airValue !== null) item.airValue = Number(item.airValue);
                     if (item.thickValue !== undefined && item.thickValue !== null) item.thickValue = Number(item.thickValue);
                 });
@@ -787,6 +788,57 @@
             }
         }
         return null;
+    }
+
+    // Priority-based extraction so we always pick the MES barcode/cut-film generation time, never upload/update/audit time
+    function extractGenerationTime(row) {
+        const excluded = /(upload|export|update|modify|audit|approve|print|sync|上传|导出|更新|修改|审核|审批|打印|同步)/i;
+        const priorityGroups = [
+            ['cut film time', '切膜时间', '分切时间', '大分切时间', '小分切时间', '条码生成时间', '生成时间', '下卷时间', '卷取时间', '生产时间', 'production time', 'generate time', 'slit time'],
+            ['创建时间', 'create time', 'created time', '录入时间'],
+            ['检验时间', '检测时间', '测试时间', 'inspection time', 'test time'],
+            ['time', 'date', '日期', '时间']
+        ];
+        for (let group of priorityGroups) {
+            for (let kw of group) {
+                for (let key in row) {
+                    let lowerKey = key.toLowerCase();
+                    if (excluded.test(lowerKey)) continue;
+                    if (lowerKey.includes(kw.toLowerCase())) {
+                        let val = row[key];
+                        if (val !== null && val !== undefined && String(val).trim() !== '') return val;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    // Ensures old barcodes (e.g., WDW1261118...) with bad upload/retest timestamps never jump into a later day's Red Box
+    function sanitizeBarcodeTimestamp(barcode, timeMs) {
+        if (!barcode) return timeMs;
+        const m = String(barcode).trim().match(/WDW\d(\d{2})(\d{2})(\d{2})([A-Za-z]+)(\d+)/i);
+        if (!m) return timeMs;
+        const year = 2000 + parseInt(m[1], 10);
+        const month = parseInt(m[2], 10) - 1;
+        const day = parseInt(m[3], 10);
+        if (month < 0 || month > 11 || day < 1 || day > 31) return timeMs;
+
+        const dayStart = new Date(year, month, day, 0, 0, 0, 0).getTime();
+        const minValid = dayStart - (4 * 60 * 60 * 1000);   // Allow 4h before midnight
+        const maxValid = dayStart + (32 * 60 * 60 * 1000);  // Allow night-shift spillover up to 08:00 next day
+
+        if (typeof timeMs === 'number' && !isNaN(timeMs) && timeMs >= minValid && timeMs <= maxValid) {
+            return timeMs;
+        }
+        // Fallback: anchor to barcode's own production date in shift + roll sequence order
+        const shiftCode = m[4].toUpperCase();
+        const rollNum = parseInt(m[5].slice(-3), 10) || 0;
+        let baseHour = 0;
+        if (shiftCode.includes('AB')) baseHour = 8;
+        else if (shiftCode.includes('AC')) baseHour = 16;
+        const offsetMs = (baseHour * 60 + Math.min(rollNum * 5, 470)) * 60 * 1000;
+        return dayStart + offsetMs;
     }
 
     function extractModelFromRow(row) {
@@ -1041,7 +1093,7 @@
             const row = {};
             for (let k in rawRow) row[k.trim()] = rawRow[k];
             let line = findValueByKeywords(row, ['production line', '产线名称', 'line', '产线']);
-            let timeStr = findValueByKeywords(row, ['cut film time', '检验时间', 'time', '创建时间', 'date', '日期']);
+            let timeStr = extractGenerationTime(row);
             let barcode = extractBarcode(row);
             let rowModel = extractModelFromRow(row);
             
@@ -1081,7 +1133,7 @@
 
                 tempMap[line].set(barcode, {
                     barcode: String(barcode).trim(),
-                    time: dateObj.getTime(),
+                    time: sanitizeBarcodeTimestamp(barcode, dateObj.getTime()),
                     airValue: airVal !== null && !isNaN(airVal) ? Number(airVal) : (existingItem && existingItem.airValue !== undefined ? existingItem.airValue : null),
                     thickValue: thickVal !== null && !isNaN(thickVal) ? Number(thickVal) : (existingItem && existingItem.thickValue !== undefined ? existingItem.thickValue : null),
                     model: finalModel || ""
