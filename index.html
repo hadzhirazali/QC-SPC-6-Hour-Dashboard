@@ -1171,7 +1171,7 @@
         </div>`;
     }
 
-    // --- NATIVE HTML5 CANVAS SPC GRAPH ENGINE (SHOWS ALL BARCODES) ---
+    // --- NATIVE HTML5 CANVAS SPC GRAPH ENGINE (CATMULL-ROM SMOOTH SPLINE + CRISP SMALL DOTS) ---
     function paintSPCPlotOnContext(ctx, width, height, cfg) {
         ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height);
         const isCompact = height < 260;
@@ -1237,16 +1237,41 @@
             }
         }
 
-        // Draw smooth trend line + subtle small data dots
-        ctx.save(); ctx.strokeStyle = '#6395f9'; ctx.lineWidth = isCompact ? 1.5 : 2;
+        // Draw true Catmull-Rom smooth trend line + crisp small data dots
+        ctx.save();
+        ctx.strokeStyle = '#6395f9';
+        ctx.lineWidth = isCompact ? 1.4 : 1.6;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+
+        const tension = 0.18;
         ctx.beginPath();
-        validPoints.forEach((pt, idx) => {
-            if (idx === 0) ctx.moveTo(pt.x, pt.y);
-            else { const prev = validPoints[idx - 1], midX = (prev.x + pt.x) / 2; ctx.bezierCurveTo(midX, prev.y, midX, pt.y, pt.x, pt.y); }
-        });
+        for (let i = 0; i < validPoints.length; i++) {
+            const p1 = validPoints[i];
+            if (i === 0) {
+                ctx.moveTo(p1.x, p1.y);
+            } else {
+                const p0 = validPoints[Math.max(0, i - 2)];
+                const pPrev = validPoints[i - 1];
+                const p2 = validPoints[Math.min(validPoints.length - 1, i + 1)];
+
+                const cp1x = pPrev.x + (p1.x - p0.x) * tension;
+                const cp1y = pPrev.y + (p1.y - p0.y) * tension;
+                const cp2x = p1.x - (p2.x - pPrev.x) * tension;
+                const cp2y = p1.y - (p2.y - pPrev.y) * tension;
+
+                ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p1.x, p1.y);
+            }
+        }
         ctx.stroke();
+
         ctx.fillStyle = '#6395f9';
-        validPoints.forEach(pt => { ctx.beginPath(); ctx.arc(pt.x, pt.y, isCompact ? 1.3 : 1.8, 0, Math.PI * 2); ctx.fill(); });
+        const dotR = isCompact ? 1.1 : 1.4;
+        validPoints.forEach(pt => {
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, dotR, 0, Math.PI * 2);
+            ctx.fill();
+        });
         ctx.restore();
         return { pad, plotW, plotH, getX, getY, n };
     }
