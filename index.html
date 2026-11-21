@@ -905,6 +905,18 @@
         return match ? (match[1] + match[3]) : b;
     }
 
+    // Strict chronological sort key from barcode ID: YYMMDD + Shift (AA<AB<AC) + Roll Number
+    function getBarcodeSortKey(motherBarcode) {
+        if (!motherBarcode) return null;
+        const m = String(motherBarcode).trim().match(/WDW\d(\d{2})(\d{2})(\d{2})([A-Za-z]+)(\d+)/i);
+        if (!m) return null;
+        const yymmdd = m[1] + m[2] + m[3];
+        const shift = m[4].toUpperCase();
+        const shiftRank = shift === 'AA' ? '1' : (shift === 'AB' ? '2' : (shift === 'AC' ? '3' : '9_' + shift));
+        const rollNum = String(parseInt(m[5], 10) || 0).padStart(5, '0');
+        return `${yymmdd}_${shiftRank}_${rollNum}`;
+    }
+
     function formatTVCompactBarcode(mb) {
         if (!mb || mb === 'No Data') return '';
         let s = String(mb).replace(/^WDW\d/i, '');
@@ -1374,8 +1386,10 @@
 
     function buildAndMountSingleSPCChart(targetWrapper, line, typeKey, highlightStart, highlightEnd, domPrefix, instancesList, metaList, modelsToVerify) {
         const isCompactTV = (domPrefix === 'tv');
-        const windowHours = 24;
-        const displayStartTimeMs = highlightEnd.getTime() - (windowHours * 60 * 60 * 1000), displayEndTimeMs = highlightEnd.getTime();
+        const displayStartTimeMs = isCompactTV
+            ? (highlightEnd.getTime() - (24 * 60 * 60 * 1000))
+            : (highlightStart.getTime() - (24 * 60 * 60 * 1000));
+        const displayEndTimeMs = highlightEnd.getTime();
         const formatDate = (d) => (!d || isNaN(d.getTime())) ? '' : `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 
         const baseLine = getLineBaseConfig(line, typeKey);
@@ -1409,11 +1423,12 @@
         let averagedKeys = Object.keys(groupedData).sort((a,b) => {
             let mA = getMotherBarcode(a), mB = getMotherBarcode(b);
             if (mA !== mB) {
+                let skA = getBarcodeSortKey(mA), skB = getBarcodeSortKey(mB);
+                if (skA && skB && skA !== skB) return skA.localeCompare(skB);
                 let mtA = motherTimeMap[mA], mtB = motherTimeMap[mB];
                 return mtA !== mtB ? (mtA - mtB) : mA.localeCompare(mB);
             }
-            let tA = groupedData[a].timeSum / groupedData[a].count, tB = groupedData[b].timeSum / groupedData[b].count;
-            return tA !== tB ? (tA - tB) : a.localeCompare(b);
+            return a.localeCompare(b);
         });
         
         averagedKeys.forEach(k => {
